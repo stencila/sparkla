@@ -79,56 +79,56 @@ export default class Machine {
     })
     vm.on('exit', code => {
       if (code !== 0) log.error(`${this.id}:exited with code ${code}`)
-      else log.info(`${this.id}:exited normally`)
+      else log.debug(`${this.id}:exited normally`)
     })
-    log.info(`${this.id}:created`)
+    log.debug(`${this.id}:created`)
 
     // Define the boot source
-    await this.request('PUT', '/boot-source', {
+    await this.put('/boot-source', {
       kernel_image_path: this.kernel,
       boot_args: this.bootArgs
     })
-    log.info(`${this.id}:boot-defined`)
+    log.debug(`${this.id}:boot-defined`)
 
     // Define the root filesystem
-    await this.request('PUT', '/drives/rootfs', {
+    await this.put('/drives/rootfs', {
       drive_id: 'rootfs',
       path_on_host: this.rootfs, 
       is_root_device: true, 
       is_read_only: false    
     })
-    log.info(`${this.id}:root-defined`)
+    log.debug(`${this.id}:root-defined`)
 
     // Set up logger
     const logFifo = `${this.home}/log.fifo`
     const metricsFifo = `${this.home}/metrics.fifo`
     await exec(`mkfifo ${logFifo}`)
     await exec(`mkfifo ${metricsFifo}`)
-    await this.request('PUT', '/logger', {
+    await this.put('/logger', {
       log_fifo: logFifo,
       metrics_fifo: metricsFifo
     })
-    log.info(`${this.id}:logger-setup`)
+    log.debug(`${this.id}:logger-setup`)
 
     // Start the instance
-    await this.request('PUT', '/actions', {
+    await this.put('/actions', {
       action_type: 'InstanceStart'
     })
     log.info(`${this.id}:started`)
   }
 
   async info () {
-    return await this.request('GET', '/')
+    return await this.get('/')
   }
 
   async stop () {
-    await this.request('PUT', '/actions', {
+    await this.put('/actions', {
       action_type: 'SendCtrlAltDel'
     })
     log.info(`${this.id}:stopped`)
   }
 
-  async request (method: 'GET' | 'PUT' | 'PATCH', path: string, body?: object): Promise<object> {
+  private async request (method: 'GET' | 'PUT' | 'PATCH', path: string, body?: object): Promise<object> {
     return new Promise((resolve, reject) => {
       const request = http.request({
         socketPath: this.socket,
@@ -161,6 +161,18 @@ export default class Machine {
         request.end()
       }
     })
+  }
+  
+  private async get (path: string): Promise<object> {
+    return this.request('GET', path)
+  }
+
+  private async put (path: string, body: object): Promise<object> {
+    return this.request('PUT', path, body)
+  }
+
+  private async patch (path: string, body: object): Promise<object> {
+    return this.request('PATCH', path, body)
   }
 
 }
