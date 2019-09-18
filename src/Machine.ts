@@ -62,7 +62,7 @@ export default class Machine {
     // TODO: Temporary mkdir pending use of Jailer (which should do this for us)
     this.home = `/tmp/vm-${this.id}`
     fs.mkdirSync(this.home)
-    this.socket = `${this.home}/socket`
+    this.socket = `${this.home}/api.socket`
 
     // Create the VM
     const vm = spawn(
@@ -110,6 +110,22 @@ export default class Machine {
     })
     log.debug(`${this.id}:logger-setup`)
 
+    // Add vsock for communicating with VM
+    // See https://github.com/firecracker-microvm/firecracker/blob/master/docs/vsock.md
+    // Note that this API endpoint will change in >v0.18 to `/vsock` (no id in path)
+    // See https://github.com/firecracker-microvm/firecracker/commit/1ca64f5b86b5f83adb1758cb22cf699427d76ebc
+    await this.put('/vsocks/1', {
+      vsock_id: "1",
+      // The VSOCK Content Identifier (CID) on the guest
+      // See http://man7.org/linux/man-pages/man7/vsock.7.html
+      // According to that, CID -1 to 2 are special and the Firecracker examples use CID 3.
+      //So that's what we use here....
+      guest_cid: 3,
+      // Path to the UDS on the host
+      uds_path: `${this.home}/virtual.socket`
+    })
+    log.debug(`${this.id}:vsock-setup`)
+
     // Start the instance
     await this.put('/actions', {
       action_type: 'InstanceStart'
@@ -143,11 +159,18 @@ export default class Machine {
         response.on('data', data => parts.push(data))
         response.on('error', reject)
         response.on('end', () => {
-          if (response.statusCode > 299) {
-            log.error(`request error: ${response.statusCode}`)
+          const { statusCode } = response
+          const body = Buffer.concat(parts).toString()
+          if (statusCode > 299) {
+            let message
+            try {
+              message = JSON.parse(body).fault_message
+            } catch {
+              message = ''
+            }
+            log.error(`request error: ${statusCode} ${message}`)
             return reject()
           }
-          const body = Buffer.concat(parts).toString()
           if (body.length > 0) resolve(JSON.parse(body))
           else resolve()
         })
