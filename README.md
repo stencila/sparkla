@@ -18,8 +18,8 @@ chmod +x firecracker
 And the kernel and rootfs images:
 
 ```bash
-curl -fsSL -o hello-vmlinux.bin https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin
-curl -fsSL -o hello-rootfs.ext4 https://s3.amazonaws.com/spec.ccfc.min/img/hello/fsfiles/hello-rootfs.ext4
+curl -fsSL -o src/guest/hello-vmlinux.bin https://s3.amazonaws.com/spec.ccfc.min/img/hello/kernel/hello-vmlinux.bin
+curl -fsSL -o src/guest/hello-rootfs.ext4 https://s3.amazonaws.com/spec.ccfc.min/img/hello/fsfiles/hello-rootfs.ext4
 ```
 
 ## Development
@@ -27,4 +27,5 @@ curl -fsSL -o hello-rootfs.ext4 https://s3.amazonaws.com/spec.ccfc.min/img/hello
 ```bash
 npm install
 npm run dev
+npm run interact
 ```
