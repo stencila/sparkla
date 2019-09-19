@@ -4,10 +4,13 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as http from 'http';
 import * as net from 'net';
+import * as path from 'path';
 import { promisify } from 'util';
 
 const spawn = childProcess.spawn
 const exec = promisify(childProcess.exec)
+const readFile = promisify(fs.readFile)
+const writeFile = promisify(fs.writeFile)
 
 const log = getLogger('sparkla:machine')
 
@@ -18,42 +21,35 @@ export default class Machine {
    * 
    * Intended to be unguessable so that it may be used
    * as part of a [Capability URL](https://www.w3.org/TR/capability-urls/)
-   * for restricting access to the machine (in addition to other
+   * for restricting access to the WM (in addition to other
    * security measures e.g. JWT)
    */
   readonly id: string
 
   /**
-   * Home directory for the VM on the host
-   */
-  private home: string
-
-  /**
    * Handling of standard I/O
    * 
    * pipe: pipe stdout and stderr to files in the VM's home
-   * inherit: pass throught stdout and stderr to/from the parent
+   * inherit: pass through stdout and stderr to/from the parent
    * 
    * See https://nodejs.org/api/child_process.html#child_process_options_stdio
    */
   private stdio: 'pipe' | 'inherit' = 'pipe'
-  
+
   /**
-   * Path to the Firecracker API socket on the host 
+   * Path to the kernel file
    */
-  private apiSocket: string
+  readonly kernel: string
 
+  /**
+   * Path to the rootfs ext4 file
+   */
+  readonly rootfs: string
 
-  private connection: net.Socket
-
-
-  readonly kernel = './hello-vmlinux.bin'
-
-  readonly rootfs =  './hello-rootfs.ext4'
-  readonly bootArgs = 'console=ttyS0 reboot=k panic=1 pci=off'
-
-  //readonly rootfs = './src/guest/rootfs.ext4'
-  //readonly bootArgs = 'console=ttyS1 reboot=k panic=1 pci=off'
+  /**
+   * Boot arguments
+   */
+  readonly bootArgs: string
 
   /**
    * Number of vCPUs (either 1 or an even number)
@@ -70,6 +66,19 @@ export default class Machine {
    */
   readonly hyperthreading: boolean
 
+  /**
+   * Child process of the VM.
+   */
+  private process: childProcess.ChildProcess
+
+  /**
+   * Socket connection to the VM.
+   * 
+   * Used to pipe request / response data through
+   * to the VM.
+   */
+  private connection: net.Socket
+
 
   constructor (options: {
     stdio?: 'pipe' | 'inherit'
@@ -78,16 +87,38 @@ export default class Machine {
 
     this.id = crypto.randomBytes(32).toString('hex')
     this.stdio = stdio
+
+    this.kernel = path.join(__dirname, '..', 'guest', 'hello-vmlinux.bin')
+
+    this.rootfs =  path.join(__dirname, '..', 'guest', 'hello-rootfs.ext4')
+    this.bootArgs = 'console=ttyS0 reboot=k panic=1 pci=off'
+  
+    //this.rootfs = path.join(__dirname, '..', 'rootfs.ext4')
+    //this.bootArgs = 'console=ttyS1 reboot=k panic=1 pci=off'
+  }
+
+  /**
+   * Home directory of the VM on the host
+   */
+  get home() : string {
+    // TODO: Temporary location pending use of Jailer (which uses a certain directory)
+    return `/tmp/vm-${this.id}`
+  }
+
+  /**
+   * Path to the Firecracker API socket file
+   */
+  get apiSocket() : string {
+    return `${this.home}/api.sock`
   }
   
   async start () {
-    // TODO: Temporary mkdir pending use of Jailer (which should do this for us)
-    this.home = `/tmp/vm-${this.id}`
+    // Create home dir
+    // TODO: When using Jailer this may not be necessary
     fs.mkdirSync(this.home)
-    this.apiSocket = `${this.home}/api.socket`
 
     // Create the VM
-    const vm = spawn(
+    this.process = spawn(
       `./firecracker`,
       [
         `--api-sock=${this.apiSocket}`,
@@ -97,15 +128,16 @@ export default class Machine {
       }
     )
     if (this.stdio === 'pipe') {
-      vm.stdout.pipe(fs.createWriteStream(`${this.home}/stdout.txt`))
-      vm.stderr.pipe(fs.createWriteStream(`${this.home}/stderr.txt`))
+      this.process.stdout.pipe(fs.createWriteStream(`${this.home}/stdout.txt`))
+      this.process.stderr.pipe(fs.createWriteStream(`${this.home}/stderr.txt`))
     }
-    vm.on('error', error => {
+    this.process.on('error', error => {
       log.error(error)
     })
-    vm.on('exit', code => {
-      if (code !== 0) log.error(`${this.id}:exited with code ${code}`)
-      else log.debug(`${this.id}:exited normally`)
+    this.process.on('exit', (code, signal) => {
+      if (signal !== null) log.debug(`${this.id}:exited:${signal}`)
+      else if (code !== 0) log.error(`${this.id}:exited:${code}`)
+      else log.debug(`${this.id}:exited`)
     })
     log.debug(`${this.id}:created`)
 
@@ -168,7 +200,9 @@ export default class Machine {
       log.debug(`${this.id}:connected`)
       this.connection.write(`CONNECT 80\n`)
     })
-
+    this.connection.on('error', error => {
+      log.error(error)
+    })
     this.connection.on('close', () => {
       // If there is no server listening in the VM then the connection will be closed.
       // > "If no one is listening, Firecracker will terminate the host connection.")
@@ -180,10 +214,22 @@ export default class Machine {
     return await this.get('/')
   }
 
-  async stop () {
+  async reboot () {
     await this.put('/actions', {
       action_type: 'SendCtrlAltDel'
     })
+    log.info(`${this.id}:rebooted`)
+  }
+
+  /**
+   * Stop the VM.
+   * 
+   * Currently there is no way to gracefully shutdown the Firecracker VM.
+   * See https://github.com/firecracker-microvm/firecracker/blob/master/FAQ.md#how-can-i-gracefully-reboot-the-guest-how-can-i-gracefully-poweroff-the-guest
+   */
+  async stop () {
+    this.connection.destroy()
+    this.process.kill()
     log.info(`${this.id}:stopped`)
   }
 
