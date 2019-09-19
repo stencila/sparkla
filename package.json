@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "NODE_ENV=development ts-node src/serve.ts",
-    "start": "NODE_ENV=production ts-node src/serve.ts"
+    "start": "NODE_ENV=production ts-node src/serve.ts",
+    "interact": "ts-node src/interact.ts"
   },
   "license": "Apache-2.0",
   "devDependencies": {
