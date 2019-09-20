@@ -8,7 +8,7 @@
 import Machine from './Machine'
 
 ;(async () => {
-  const machine = new Machine(undefined, {
+  const machine = new Machine({
     stdio: 'inherit'
   })
   await machine.start()

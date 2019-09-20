@@ -88,12 +88,12 @@ export default class Machine {
     this.id = crypto.randomBytes(32).toString('hex')
     this.stdio = stdio
 
-    this.kernel = path.join(__dirname, '..', 'guest', 'hello-vmlinux.bin')
-
-    this.rootfs =  path.join(__dirname, '..', 'guest', 'hello-rootfs.ext4')
+    this.kernel = path.join(__dirname, '..', 'guest', 'kernel', 'hello', 'kernel.bin')
+    this.rootfs =  path.join(__dirname, '..', 'guest', 'rootfs', 'hello', 'rootfs.ext4')
     this.bootArgs = 'console=ttyS0 reboot=k panic=1 pci=off'
   
-    //this.rootfs = path.join(__dirname, '..', 'rootfs.ext4')
+    //this.kernel = path.join(__dirname, '..', 'guest', 'alpine', 'kernel.bin')
+    //this.rootfs = path.join(__dirname, '..', 'guest', 'alpine', 'rootfs.ext4')
     //this.bootArgs = 'console=ttyS1 reboot=k panic=1 pci=off'
   }
 
