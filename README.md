@@ -20,5 +20,17 @@ sudo setfacl -m u:${USER}:rw /dev/kvm
 ```bash
 make
 npm run dev
-npm run interact
+```
+
+To check that a VM is running:
+
+```bash
+ps aux | firecracker
+```
+
+You can check that the logs and metrics of a VM while it is running:
+
+```bash
+cat /tmp/vm-0d0b4b2fa73c5d4c10ed72ccac97b798530ba1b7ab8461fd313d320fb5d3562e/log.fifo
+cat /tmp/vm-0d0b4b2fa73c5d4c10ed72ccac97b798530ba1b7ab8461fd313d320fb5d3562e/metrics.fifo
 ```

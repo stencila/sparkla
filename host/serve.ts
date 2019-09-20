@@ -17,9 +17,8 @@ replaceHandlers(data => {
 
 const manager = new Manager()
   
-// TODO: Implement. Currently just a stub that starts and stops a single machine
+// TODO: Implement. Currently just a stub that starts a single machine
 ;(async () => {
   const machineId = await manager.start()
   console.log(await manager.info(machineId))
-  await manager.stop(machineId)
 })()

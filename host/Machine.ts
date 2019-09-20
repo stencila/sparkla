@@ -27,16 +27,6 @@ export default class Machine {
   readonly id: string
 
   /**
-   * Handling of standard I/O
-   * 
-   * pipe: pipe stdout and stderr to files in the VM's home
-   * inherit: pass through stdout and stderr to/from the parent
-   * 
-   * See https://nodejs.org/api/child_process.html#child_process_options_stdio
-   */
-  private stdio: 'pipe' | 'inherit' = 'pipe'
-
-  /**
    * Path to the kernel file
    */
   readonly kernel: string
@@ -79,22 +69,11 @@ export default class Machine {
    */
   private connection: net.Socket
 
-
-  constructor (options: {
-    stdio?: 'pipe' | 'inherit'
-  } = {}) {
-    const {stdio = 'pipe'} = options
-
+  constructor () {
     this.id = crypto.randomBytes(32).toString('hex')
-    this.stdio = stdio
-
-    this.kernel = path.join(__dirname, '..', 'guest', 'kernel', 'hello', 'kernel.bin')
-    this.rootfs =  path.join(__dirname, '..', 'guest', 'rootfs', 'hello', 'rootfs.ext4')
-    this.bootArgs = 'console=ttyS0 reboot=k panic=1 pci=off'
-  
-    //this.kernel = path.join(__dirname, '..', 'guest', 'alpine', 'kernel.bin')
-    //this.rootfs = path.join(__dirname, '..', 'guest', 'alpine', 'rootfs.ext4')
-    //this.bootArgs = 'console=ttyS1 reboot=k panic=1 pci=off'
+    this.kernel = path.join(__dirname, '..', 'guest', 'kernel', 'default', 'kernel.bin')
+    this.rootfs =  path.join(__dirname, '..', 'guest', 'rootfs', 'ubuntu', 'rootfs.ext4')
+    this.bootArgs = 'reboot=k panic=1 pci=off'
   }
 
   /**
@@ -123,14 +102,10 @@ export default class Machine {
       [
         `--api-sock=${this.apiSocket}`,
         `--id=${this.id}`
-      ], {
-        stdio: this.stdio
-      }
+      ]
     )
-    if (this.stdio === 'pipe') {
-      this.process.stdout.pipe(fs.createWriteStream(`${this.home}/stdout.txt`))
-      this.process.stderr.pipe(fs.createWriteStream(`${this.home}/stderr.txt`))
-    }
+    this.process.stdout.pipe(fs.createWriteStream(`${this.home}/stdout.txt`))
+    this.process.stderr.pipe(fs.createWriteStream(`${this.home}/stderr.txt`))
     this.process.on('error', error => {
       log.error(error)
     })
