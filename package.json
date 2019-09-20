@@ -4,9 +4,8 @@
   "description": "Secure and fast microVMs using Amazon Firecracker",
   "main": "index.js",
   "scripts": {
-    "dev": "NODE_ENV=development ts-node src/host/serve.ts",
-    "start": "NODE_ENV=production ts-node src/host/serve.ts",
-    "interact": "ts-node src/host/interact.ts"
+    "dev": "NODE_ENV=development ts-node host/serve.ts",
+    "start": "NODE_ENV=production ts-node host/serve.ts"
   },
   "license": "Apache-2.0",
   "devDependencies": {
