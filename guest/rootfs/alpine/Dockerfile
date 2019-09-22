@@ -1,22 +1,23 @@
-# Build stage to build nc-vsock
+# Build stage to build vsock-server
 
 FROM alpine
 
-RUN apk update       \
- && apk add          \
+RUN apk update
+RUN apk add          \
       build-base     \
       gcc            \
       linux-headers
 
-COPY nc-vsock.c .
-RUN gcc -o nc-vsock nc-vsock.c
+COPY vsock-server.c .
+RUN gcc -o vsock-server vsock-server.c
 
-# Filesystem stage with nc-vsock installed
+# Filesystem stage with vsock-server installed
+# and init script added to 
 
 FROM alpine
 
-COPY --from=0 /nc-vsock /bin
-
-RUN apk update       \
- && apk add          \
+RUN apk update
+RUN apk add          \
       openrc
+
+COPY --from=0 /vsock-server /usr/bin
