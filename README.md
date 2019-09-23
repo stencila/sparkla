@@ -19,7 +19,7 @@ sudo setfacl -m u:${USER}:rw /dev/kvm
 
 ```bash
 make
-npm run dev
+npm run dev:shell
 ```
 
 To check that a VM is running:

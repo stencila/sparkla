@@ -3,7 +3,7 @@
  * between the host and microVMs.
  *
  * Inspired by and mostly based on `nc-vsock` by Stefan Hajnoczi
- * https://github.com/stefanha/nc-vsock/. This is a simlified
+ * https://github.com/stefanha/nc-vsock/. This is a simplified
  * version of `nc-vsock` that only listens, does not
  * support tunneling to TCP socket, and does support
  * echoing (mainly for testing).
@@ -25,49 +25,35 @@
 /**
  * Set a file descriptor to be non-blocking
  */
-static void set_non_blocking(int fd, bool enable) {
-	int ret;
-	int flags;
-
-	ret = fcntl(fd, F_GETFL);
+static void set_non_blocking(int fd) {
+	int ret = fcntl(fd, F_GETFL);
 	if (ret < 0) {
 		perror("fcntl");
 		return;
 	}
-
-	flags = ret & ~O_NONBLOCK;
-	if (enable) {
-		flags |= O_NONBLOCK;
-	}
-
-	fcntl(fd, F_SETFL, flags);
+	fcntl(fd, F_SETFL, ret & ~O_NONBLOCK);
 }
 
 /**
  * Transfer data between file descriptors
  */
 static int transfer_data(int in_fd, int out_fd) {
-	char buf[4096];
-	char *send_ptr = buf;
-	ssize_t nbytes;
-	ssize_t remaining;
+	char buffer[4096];
+	char *data = buffer;
 
-	nbytes = read(in_fd, buf, sizeof(buf));
-	if (nbytes <= 0) {
-		return -1;
-	}
+	size_t size = read(in_fd, buffer, sizeof(buffer));
+	if (size <= 0) return -1;
 
-	remaining = nbytes;
+	ssize_t remaining = size;
 	while (remaining > 0) {
-		nbytes = write(out_fd, send_ptr, remaining);
-		if (nbytes < 0 && errno == EAGAIN) {
-			nbytes = 0;
-		} else if (nbytes <= 0) {
+		size = write(out_fd, data, remaining);
+		if (size < 0 && errno == EAGAIN) {
+			size = 0;
+		} else if (size <= 0) {
 			return -1;
 		}
 
-		if (remaining > nbytes) {
-			/* Wait for fd to become writeable again */
+		if (remaining > size) {
 			for (;;) {
 				fd_set wfds;
 				FD_ZERO(&wfds);
@@ -87,33 +73,38 @@ static int transfer_data(int in_fd, int out_fd) {
 			}
 		}
 
-		send_ptr += nbytes;
-		remaining -= nbytes;
+		data += size;
+		remaining -= size;
 	}
 	return 0;
 }
 
 int main(int argc, char **argv) {
     if (argc < 2 || argc > 3) {
-        fprintf(stderr, "Usage: vsock-server <port> [--echo]\n");
+        fprintf(stderr, "Usage: vsock-server <port> [--echo | --pass]\n");
 		return 1;
     }
 	
-	char* port_str = argv[1];
-	char* end = NULL;
+	char *port_str = argv[1];
+	char *end = NULL;
 	long port = strtol(port_str, &end, 10);
 	if (port_str == end || *end != '\0') {
 		fprintf(stderr, "invalid port number: %s\n", port_str);
 		return 1;
 	}
 
-    bool echo = false;
+    enum mode {
+		pass,
+		echo
+	} mode = pass;
 	if (argc == 3) {
 		char* option = argv[2];
         if (strcmp(option, "--echo") == 0) {
-			echo = true;
+			mode = echo;
+		} else if (strcmp(option, "--pass") == 0) {
+			mode = pass;
 		} else {
-			fprintf(stderr, "invalid option: %s\n", option);
+			fprintf(stderr, "invalid mode: %s\n", option);
 			return 1;
 		}
     }
@@ -145,7 +136,7 @@ int main(int argc, char **argv) {
 	struct sockaddr_vm sa_client;
 	socklen_t socklen_client = sizeof(sa_client);
 	
-    int client_fd = accept(listen_fd, (struct sockaddr*)&sa_client, &socklen_client);
+	int client_fd = accept(listen_fd, (struct sockaddr*)&sa_client, &socklen_client);
 	if (client_fd < 0) {
 		perror("accept");
 		close(listen_fd);
@@ -157,11 +148,11 @@ int main(int argc, char **argv) {
 	fd_set rfds;
 	int nfds = client_fd + 1;
 
-	set_non_blocking(STDIN_FILENO, true);
-	set_non_blocking(STDOUT_FILENO, true);
-	set_non_blocking(client_fd, true);
+	set_non_blocking(STDIN_FILENO);
+	set_non_blocking(STDOUT_FILENO);
+	set_non_blocking(client_fd);
 
-	for (;;) {
+	while (true) {
 		FD_ZERO(&rfds);
 		FD_SET(STDIN_FILENO, &rfds);
 		FD_SET(client_fd, &rfds);
@@ -175,15 +166,15 @@ int main(int argc, char **argv) {
 			}
 		}
 
-		if (FD_ISSET(STDIN_FILENO, &rfds)) {
+		if (FD_ISSET(STDIN_FILENO, &rfds) && port > 0) {
 			if (transfer_data(STDIN_FILENO, client_fd) < 0) {
-				return 0;
+				return 1;
 			}
 		}
 
 		if (FD_ISSET(client_fd, &rfds)) {
-			if (transfer_data(client_fd, echo ? client_fd : STDOUT_FILENO) < 0) {
-				return 0;
+			if (transfer_data(client_fd, mode == echo ? client_fd : STDOUT_FILENO) < 0) {
+				return 1;
 			}
 		}
 	}
