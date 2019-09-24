@@ -102,7 +102,9 @@ export default class Machine {
     return `${this.home}/vm-rpc.sock`
   }
   
-  async start () {
+  async start (options: {attach?: boolean} = {}) {
+    const { attach = false } = options
+
     // Create home dir
     // TODO: When using Jailer this may not be necessary
     fs.mkdirSync(this.home)
@@ -113,10 +115,15 @@ export default class Machine {
       [
         `--api-sock=${this.fcSocket}`,
         `--id=${this.id}`
-      ]
+      ],
+      {
+        stdio: attach ? 'inherit' : 'pipe'
+      }
     )
-    this.process.stdout.pipe(fs.createWriteStream(`${this.home}/stdout.txt`))
-    this.process.stderr.pipe(fs.createWriteStream(`${this.home}/stderr.txt`))
+    if (!attach) {
+      this.process.stdout.pipe(fs.createWriteStream(`${this.home}/stdout.txt`))
+      this.process.stderr.pipe(fs.createWriteStream(`${this.home}/stderr.txt`))
+    }
     this.process.on('error', error => {
       log.error(error)
     })
@@ -130,7 +137,7 @@ export default class Machine {
     // Define the boot source
     await this.fcPut('/boot-source', {
       kernel_image_path: this.kernel,
-      boot_args: this.bootArgs
+      boot_args: (attach ? 'console=ttyS0 ' : '' ) + this.bootArgs
     })
     log.debug(`${this.id}:boot-defined`)
 

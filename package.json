@@ -4,6 +4,7 @@
   "description": "Secure and fast microVMs using Amazon Firecracker",
   "main": "index.js",
   "scripts": {
+    "dev:attach": "NODE_ENV=development ts-node host/attach",
     "dev:shell": "ts-node host/shell",
     "dev:shell:debug": "ts-node host/shell -- --debug",
     "dev:serve": "NODE_ENV=development ts-node host/serve",
