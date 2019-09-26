@@ -11,12 +11,11 @@ export default class DockerMachine extends Machine {
   engine = 'docker'
 
   readonly image: string
-  readonly port: number
+  private port: number
 
   constructor(options: any) {
     super(options)
     this.image = options.image
-    this.port = options.port
   }
 
   async start(): Promise<void> {
@@ -26,7 +25,7 @@ export default class DockerMachine extends Machine {
         'run',
         '-d',
         '-p',
-        `${this.port}:${INTERNAL_PORT}`,
+        `${INTERNAL_PORT}`,
         this.image,
         '/usr/bin/node',
         '/usr/bin/execution-server',
@@ -38,6 +37,12 @@ export default class DockerMachine extends Machine {
     this.id = stdout.trim()
 
     this.log.debug(`${this.engine}//${this.id}:created`)
+
+    const portOutput = await exec(['docker', 'port', this.id].join(' '))
+
+    this.port = parseInt(portOutput.stdout.trim().split(':')[1])
+
+    this.log.debug(`${this.engine}//${this.id}:listening on TCP ${this.port}`)
 
     await new Promise(resolve => setTimeout(resolve, 1000))
 

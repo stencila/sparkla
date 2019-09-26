@@ -52,7 +52,7 @@ replaceHandlers(data => {
   // Create and start a new VM
   let machine
   if (engine === 'docker')
-    machine = new DockerMachine({ image: 'sparkla:alpine', port: 9000 })
+    machine = new DockerMachine({ image: 'sparkla:alpine' })
   else machine = new FirecrackerMachine({})
 
   let stopped = false
@@ -63,8 +63,7 @@ replaceHandlers(data => {
   })
 
   process.on('beforeExit', async () => {
-    if (!stopped)
-      await machine.stop()
+    if (!stopped) await machine.stop()
   })
 
   await machine.start()
