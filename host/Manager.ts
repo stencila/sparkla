@@ -1,11 +1,11 @@
-import Machine from './Machine'
+import FirecrackerMachine from './FirecrackerMachine'
 
 export default class Manager {
 
-  machines: {[key: string]: Machine} = {}
+  machines: {[key: string]: FirecrackerMachine} = {}
 
   async start (): Promise<string> {
-    const machine = new Machine()
+    const machine = new FirecrackerMachine({})
     await machine.start()
     this.machines[machine.id] = machine
     return machine.id

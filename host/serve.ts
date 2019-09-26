@@ -1,6 +1,6 @@
 /**
  * Serve the `Manager` to provide an API for starting,
- * stopping, and communicating with `Machine`s.
+ * stopping, and communicating with `FirecrackerMachine`s.
  */
 
 import { defaultHandler, LogLevel, replaceHandlers } from '@stencila/logga';
