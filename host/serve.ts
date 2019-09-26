@@ -3,21 +3,34 @@
  * stopping, and communicating with `FirecrackerMachine`s.
  */
 
-import { defaultHandler, LogLevel, replaceHandlers } from '@stencila/logga';
-import Manager from './Manager';
+import { defaultHandler, LogLevel, replaceHandlers } from '@stencila/logga'
+import Manager from './Manager'
 
-/** 
+/**
  * Configure log handler to only show debug events during development
  */
 replaceHandlers(data => {
   defaultHandler(data, {
-    level: process.env.NODE_ENV === 'development' ? LogLevel.debug : LogLevel.info
+    level:
+      process.env.NODE_ENV === 'development' ? LogLevel.debug : LogLevel.info
   })
 })
 
 const manager = new Manager()
-  
-// TODO: Implement. Currently just a stub that starts a single machine
+
+  // TODO: Implement. Currently just a stub that starts a single machine
 ;(async () => {
-  const machineId = await manager.start()
+  let stopped = false
+  process.on('SIGINT', async () => {
+    stopped = true
+    await manager.stopAll()
+  })
+
+  process.on('beforeExit', async () => {
+    if (!stopped) await manager.stopAll()
+  })
+  const machineId = await manager.start({
+    engine: 'docker',
+    options: { image: 'sparkla:alpine' }
+  })
 })()

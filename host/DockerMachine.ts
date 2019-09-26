@@ -70,4 +70,10 @@ export default class DockerMachine extends Machine {
     this.log.debug(`${this.engine}//${this.id}:awaiting stop`)
     await exec(`docker stop ${this.id}`)
   }
+
+  async info(): Promise<object> {
+    return {
+      id: this.id
+    }
+  }
 }

@@ -42,6 +42,10 @@ export default abstract class Machine {
 
   abstract async start(): Promise<void>
 
+  abstract async stop(): Promise<void>
+
+  abstract async info(): Promise<object>
+
   protected abstract _connect(): net.Socket
 
   connect() {
@@ -83,7 +87,7 @@ export default abstract class Machine {
     const response = JSON.parse(json)
     const resolve = this.vmRequests[response.id]
     resolve(response)
-    delete this.vmRequests['response.id']
+    delete this.vmRequests[response.id]
   }
 
   attachTransport(): void {

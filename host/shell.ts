@@ -58,8 +58,8 @@ replaceHandlers(data => {
   let stopped = false
 
   process.on('SIGINT', async () => {
-    await machine.stop()
     stopped = true
+    await machine.stop()
   })
 
   process.on('beforeExit', async () => {
