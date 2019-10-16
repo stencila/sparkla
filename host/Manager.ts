@@ -1,22 +1,26 @@
+import Machine from './Machine'
+import DockerMachine from './DockerMachine'
 import FirecrackerMachine from './FirecrackerMachine'
 import Machine from './Machine'
 import DockerMachine from './DockerMachine'
 
-interface MachineStartArgs {
-  engine: string
-  options: any
+interface MachineClass {
+  new (options?: object): FirecrackerMachine | DockerMachine
 }
 
 export default class Manager {
   machines: { [key: string]: Machine } = {}
 
-  async start(args: MachineStartArgs): Promise<string> {
-    let machine
+  machineClass: MachineClass
 
-    if (args.engine === 'firecracker')
-      machine = new FirecrackerMachine(args.options)
-    else if (args.engine === 'docker') machine = new DockerMachine(args.options)
-    else throw new Error(`Unknown engine ${args.engine}`)
+  machines: {[key: string]: Machine} = {}
+
+  constructor (machineClass: MachineClass) {
+    this.machineClass = machineClass
+  }
+
+  async start (): Promise<string> {
+    const machine = new this.machineClass()
     await machine.start()
     this.machines[machine.id] = machine
     return machine.id

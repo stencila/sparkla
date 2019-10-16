@@ -44,7 +44,9 @@ export default abstract class Machine {
 
   abstract async stop(): Promise<void>
 
-  abstract async info(): Promise<object>
+  async info(): Promise<object> {
+    return {}
+  }
 
   protected abstract _connect(): net.Socket
 

@@ -16,6 +16,14 @@ replaceHandlers(data => {
   })
 })
 
+// Collect options from command line
+let debug = false
+let engine = 'firecracker'
+for (const arg of process.argv.slice(2)) {
+  if (arg === '--debug') debug = true
+  if (arg === '--docker') engine = 'docker'
+}
+
 const manager = new Manager()
 
   // TODO: Implement. Currently just a stub that starts a single machine
