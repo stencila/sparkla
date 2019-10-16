@@ -17,12 +17,12 @@
  * ```
  */
 
-import Machine from './Machine'
+import FirecrackerMachine from './FirecrackerMachine'
 import { LogLevel, replaceHandlers, defaultHandler } from '@stencila/logga';
 
 // Always, show all log events
 replaceHandlers(data => defaultHandler(data, { level: LogLevel.debug }))
 
 // Start with attach option on
-const machine = new Machine()
+const machine = new FirecrackerMachine()
 machine.start({ attach: true })
