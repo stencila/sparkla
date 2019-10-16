@@ -1,5 +1,5 @@
 {
-  "name": "sparkla",
+  "name": "@stencila/sparkla",
   "version": "0.1.0",
   "description": "Secure and fast microVMs using Amazon Firecracker",
   "main": "index.js",
