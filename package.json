@@ -16,9 +16,9 @@
     "typescript": "^3.6.3"
   },
   "dependencies": {
-    "@stencila/executa": "^0.2.0",
-    "@stencila/logga": "^1.3.0",
-    "@stencila/schema": "^0.30.0"
+    "@stencila/executa": "^0.3.0",
+    "@stencila/logga": "^1.4.0",
+    "@stencila/schema": "^0.30.1"
   },
   "prettier": "@stencila/dev-config/prettier-config.json",
   "commitlint": {
