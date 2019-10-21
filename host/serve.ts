@@ -1,44 +1,38 @@
 /**
- * Serve the `Manager` to provide an API for starting,
- * stopping, and communicating with `FirecrackerMachine`s.
+ * Serve the `Manager`.
+ * 
+ * Usage examples:
+ * 
+ *    JWT_SECRET=not-a-secret npx ts-node-dev host/serve --debug --docker
+ *    JWT_SECRET=not-a-secret npx ts-node host/serve
+ *    JWT_SECRET=not-a-secret node dist/host/serve
  */
 
 import { defaultHandler, LogLevel, replaceHandlers } from '@stencila/logga'
-import Manager from './Manager'
+import { Manager, SessionType } from './Manager'
+import {FirecrackerSession} from './FirecrackerSession';
+import {DockerSession} from './DockerSession';
+
+// Collect options from command line
+let debug = false
+let sessionType: SessionType = FirecrackerSession
+for (const arg of process.argv.slice(2)) {
+  if (arg === '--debug') debug = true
+  if (arg === '--docker') sessionType = DockerSession
+  if (arg === '--firecracker') sessionType = FirecrackerSession
+}
 
 /**
- * Configure log handler to only show debug events during development
+ * Configure log handler to only show debug events
+ * if debug option specified
  */
 replaceHandlers(data => {
   defaultHandler(data, {
     level:
-      process.env.NODE_ENV === 'development' ? LogLevel.debug : LogLevel.info
+      debug ? LogLevel.debug : LogLevel.info
   })
 })
 
-// Collect options from command line
-let debug = false
-let engine = 'firecracker'
-for (const arg of process.argv.slice(2)) {
-  if (arg === '--debug') debug = true
-  if (arg === '--docker') engine = 'docker'
-}
-
-const manager = new Manager()
-
-  // TODO: Implement. Currently just a stub that starts a single machine
-;(async () => {
-  let stopped = false
-  process.on('SIGINT', async () => {
-    stopped = true
-    await manager.stopAll()
-  })
-
-  process.on('beforeExit', async () => {
-    if (!stopped) await manager.stopAll()
-  })
-  const machineId = await manager.start({
-    engine: 'docker',
-    options: { image: 'sparkla:alpine' }
-  })
-})()
+// Create and start manager using specified machine class
+const manager = new Manager(sessionType)
+manager.start().catch(error => {throw error })

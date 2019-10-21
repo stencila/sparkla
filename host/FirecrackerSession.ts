@@ -2,16 +2,20 @@ import * as childProcess from 'child_process'
 import * as crypto from 'crypto'
 import * as fs from 'fs'
 import * as http from 'http'
-import * as net from 'net'
 import * as path from 'path'
 import { promisify } from 'util'
-import Machine from './Machine'
+import {Session} from './Session'
+import { getLogger } from '@stencila/logga';
+import { SoftwareSession } from '@stencila/schema';
 
 const spawn = childProcess.spawn
 const exec = promisify(childProcess.exec)
 
-export default class FirecrackerMachine extends Machine {
-  engine = 'firecracker'
+const log = getLogger('sparkla:firecracker')
+
+export class FirecrackerSession extends Session {
+  
+  id: string
 
   /**
    * Path to the kernel file
@@ -39,17 +43,12 @@ export default class FirecrackerMachine extends Machine {
   readonly memory: number = 512
 
   /**
-   * Flag for enabling/disabling Hyperthreading
-   */
-  readonly hyperthreading: boolean
-
-  /**
    * Child process of the VM.
    */
-  private process: childProcess.ChildProcess
+  private process?: childProcess.ChildProcess
 
-  constructor(options) {
-    super(options)
+  constructor(options: any = {}) {
+    super()
     this.id = crypto.randomBytes(32).toString('hex')
     this.kernel = path.join(
       __dirname,
@@ -92,7 +91,7 @@ export default class FirecrackerMachine extends Machine {
     return `${this.home}/vm-rpc.sock`
   }
 
-  async start(options: { attach?: boolean } = {}) {
+  async begin(node: SoftwareSession, options: { attach?: boolean } = {}): Promise<SoftwareSession> {
     const { attach = false } = options
 
     // Create home dir
@@ -100,33 +99,36 @@ export default class FirecrackerMachine extends Machine {
     fs.mkdirSync(this.home)
 
     // Create the VM
-    this.process = spawn(
+    const process = (this.process = spawn(
       `./firecracker`,
       [`--api-sock=${this.fcSocketPath}`, `--id=${this.id}`],
       {
         stdio: attach ? 'inherit' : 'pipe'
       }
-    )
-    if (!attach) {
-      this.process.stdout.pipe(fs.createWriteStream(`${this.home}/stdout.txt`))
-      this.process.stderr.pipe(fs.createWriteStream(`${this.home}/stderr.txt`))
+    ))
+    if (process.stdout === null || process.stderr === null) {
+      throw new Error()
     }
-    this.process.on('error', error => {
-      this.log.error(error)
+    if (!attach) {
+      process.stdout.pipe(fs.createWriteStream(`${this.home}/stdout.txt`))
+      process.stderr.pipe(fs.createWriteStream(`${this.home}/stderr.txt`))
+    }
+    process.on('error', error => {
+      log.error(error)
     })
-    this.process.on('exit', (code, signal) => {
-      if (signal !== null) this.log.debug(`${this.engine}//${this.id}:exited:${signal}`)
-      else if (code !== 0) this.log.error(`${this.engine}//${this.id}:exited:${code}`)
-      else this.log.debug(`${this.id}:exited`)
+    process.on('exit', (code, signal) => {
+      if (signal !== null) log.debug(`${this.id}:exited:${signal}`)
+      else if (code !== 0) log.error(`${this.id}:exited:${code}`)
+      else log.debug(`${this.id}:exited`)
     })
-    this.log.debug(`${this.engine}//${this.id}:created`)
+    log.debug(`${this.id}:created`)
 
     // Define the boot source
     await this.fcPut('/boot-source', {
       kernel_image_path: this.kernel,
       boot_args: (attach ? 'console=ttyS0 ' : '') + this.bootArgs
     })
-    this.log.debug(`${this.engine}//${this.id}:boot-defined`)
+    log.debug(`${this.id}:boot-defined`)
 
     // Define the root filesystem
     await this.fcPut('/drives/rootfs', {
@@ -135,7 +137,7 @@ export default class FirecrackerMachine extends Machine {
       is_root_device: true,
       is_read_only: false
     })
-    this.log.debug(`${this.engine}//${this.id}:root-defined`)
+    log.debug(`${this.id}:root-defined`)
 
     // Set up logger
     const logFifo = `${this.home}/log.fifo`
@@ -146,7 +148,7 @@ export default class FirecrackerMachine extends Machine {
       log_fifo: logFifo,
       metrics_fifo: metricsFifo
     })
-    this.log.debug(`${this.engine}//${this.id}:logger-setup`)
+    log.debug(`${this.id}:logger-setup`)
 
     // Add a virtual socket for communicating with VM
     // See https://github.com/firecracker-microvm/firecracker/blob/master/docs/vsock.md
@@ -161,37 +163,17 @@ export default class FirecrackerMachine extends Machine {
       uds_path: this.vmSocketPath
     })
 
-    this.log.debug(`${this.engine}//${this.id}:vsock-setup`)
+    log.debug(`${this.id}:vsock-setup`)
 
     // Start the instance
     await this.fcPut('/actions', {
       action_type: 'InstanceStart'
     })
-    this.log.info(`${this.engine}//${this.id}:started`)
+    log.info(`${this.id}:started`)
 
     await new Promise(resolve => setTimeout(resolve, 1000))
 
-    this.connect()
-  }
-
-  _connect(): net.Socket {
-    // Create the connection to the VM
-    // See https://github.com/firecracker-microvm/firecracker/blob/master/docs/vsock.md#host-initiated-connections
-    // for steps required.
-    const socket = net.connect(this.vmSocketPath)
-    socket.on('connect', () => {
-      this.log.debug(`${this.engine}//${this.id}:connected`)
-      socket.write(`CONNECT 7300\n`)
-    })
-    socket.on('error', error => {
-      this.log.error(`${this.engine}//${this.id}:${error}`)
-    })
-    socket.on('close', () => {
-      // If there is no server listening in the VM then the connection will be closed.
-      // > "If no one is listening, Firecracker will terminate the host connection.")
-      this.log.debug(`${this.engine}//${this.id}:connection-closed`)
-    })
-    return socket
+    return node
   }
 
   async info() {
@@ -202,7 +184,7 @@ export default class FirecrackerMachine extends Machine {
     await this.fcPut('/actions', {
       action_type: 'SendCtrlAltDel'
     })
-    this.log.info(`${this.engine}//${this.id}:rebooted`)
+    log.info(`${this.id}:rebooted`)
   }
 
   /**
@@ -211,10 +193,13 @@ export default class FirecrackerMachine extends Machine {
    * Currently there is no way to gracefully shutdown the Firecracker VM.
    * See https://github.com/firecracker-microvm/firecracker/blob/master/FAQ.md#how-can-i-gracefully-reboot-the-guest-how-can-i-gracefully-poweroff-the-guest
    */
-  async stop() {
-    this.vmSocket.destroy()
-    this.process.kill()
-    this.log.info(`${this.engine}//${this.id}:stopped`)
+  async end(node: SoftwareSession): Promise<SoftwareSession> {
+    if (this.process) {
+      //this.vmSocket.destroy()
+      this.process.kill()
+      log.info(`${this.id}:stopped`)
+    }
+    return node
   }
 
   private async fcRequest(
@@ -234,11 +219,11 @@ export default class FirecrackerMachine extends Machine {
           }
         },
         response => {
-          const parts = []
+          const parts: any[] = []
           response.on('data', data => parts.push(data))
           response.on('error', reject)
           response.on('end', () => {
-            const { statusCode } = response
+            const { statusCode = 200 } = response
             const body = Buffer.concat(parts).toString()
             if (statusCode > 299) {
               let message
@@ -247,7 +232,7 @@ export default class FirecrackerMachine extends Machine {
               } catch {
                 message = ''
               }
-              this.log.error(`request error: ${statusCode} ${message}`)
+              log.error(`request error: ${statusCode} ${message}`)
               return reject()
             }
             if (body.length > 0) resolve(JSON.parse(body))
