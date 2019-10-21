@@ -1,6 +1,4 @@
-rootfs.ext4: Dockerfile ../vsock-server.c
-	cp ../vsock-server.c .
-	cp ../execution-server.js .
+rootfs.ext4: Dockerfile
 	../dockerfile-to-rootfs.sh
 
 clean:
