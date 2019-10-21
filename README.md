@@ -1,5 +1,9 @@
 # Sparkla
 
+> Compute sessions for executable documents: fast-to-start, isolated, reproducible. Pick any three.
+
+> :warning: Well, that's the aim ;) Sparkla is currently in early development. It started as an experiment in using Amazon's Firecracker as a more secure (but just as fast-to-start) alternative to Docker containers. It is intended to supersede [`stencila/cloud`](https://github.com/stencila/cloud).
+
 ## Prerequisites
 
 Download the latest Firecracker binary from https://github.com/firecracker-microvm/firecracker/releases:

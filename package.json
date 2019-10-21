@@ -1,7 +1,7 @@
 {
   "name": "@stencila/sparkla",
   "version": "0.1.0",
-  "description": "Secure and fast microVMs using Amazon Firecracker",
+  "description": "Compute sessions for executable documents: fast-to-start, isolated, reproducible. Pick any three.",
   "main": "index.js",
   "scripts": {
     "lint": "eslint 'host/**/*.{ts,js}' --fix",
