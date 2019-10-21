@@ -4,7 +4,9 @@
   "description": "Secure and fast microVMs using Amazon Firecracker",
   "main": "index.js",
   "scripts": {
-    "dev:attach": "ts-node host/attach",
+    "lint": "eslint 'host/**/*.{ts,js}' --fix",
+    "format": "npx prettier --write './**/*.{js,json,md,ts,yaml}'",
+    "build": "tsc",
     "serve": "node dist/host/serve",
     "serve:dev": "JWT_SECRET=not-a-secret ts-node-dev host/serve --debug"
   },
