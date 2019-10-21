@@ -1,4 +1,5 @@
-node_modules
+/dist
+/node_modules
 *.ext4
 *.bin
 *.tar
