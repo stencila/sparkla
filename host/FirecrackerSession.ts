@@ -4,9 +4,9 @@ import * as fs from 'fs'
 import * as http from 'http'
 import * as path from 'path'
 import { promisify } from 'util'
-import {Session} from './Session'
-import { getLogger } from '@stencila/logga';
-import { SoftwareSession } from '@stencila/schema';
+import { Session } from './Session'
+import { getLogger } from '@stencila/logga'
+import { SoftwareSession } from '@stencila/schema'
 
 const spawn = childProcess.spawn
 const exec = promisify(childProcess.exec)
@@ -14,7 +14,6 @@ const exec = promisify(childProcess.exec)
 const log = getLogger('sparkla:firecracker')
 
 export class FirecrackerSession extends Session {
-  
   id: string
 
   /**
@@ -91,7 +90,12 @@ export class FirecrackerSession extends Session {
     return `${this.home}/vm-rpc.sock`
   }
 
-  async begin(node: SoftwareSession, options: { attach?: boolean } = {}): Promise<SoftwareSession> {
+  /* eslint-disable @typescript-eslint/camelcase */
+
+  async begin(
+    node: SoftwareSession,
+    options: { attach?: boolean } = {}
+  ): Promise<SoftwareSession> {
     const { attach = false } = options
 
     // Create home dir
@@ -176,8 +180,8 @@ export class FirecrackerSession extends Session {
     return node
   }
 
-  async info() {
-    return await this.fcGet('/')
+  info(): Promise<object> {
+    return this.fcGet('/')
   }
 
   async reboot() {
@@ -193,16 +197,18 @@ export class FirecrackerSession extends Session {
    * Currently there is no way to gracefully shutdown the Firecracker VM.
    * See https://github.com/firecracker-microvm/firecracker/blob/master/FAQ.md#how-can-i-gracefully-reboot-the-guest-how-can-i-gracefully-poweroff-the-guest
    */
-  async end(node: SoftwareSession): Promise<SoftwareSession> {
-    if (this.process) {
-      //this.vmSocket.destroy()
+  end(node: SoftwareSession): Promise<SoftwareSession> {
+    if (this.process !== undefined) {
+      // this.vmSocket.destroy()
       this.process.kill()
       log.info(`${this.id}:stopped`)
     }
-    return node
+    return Promise.resolve(node)
   }
 
-  private async fcRequest(
+  /* eslint-enable @typescript-eslint/camelcase */
+
+  private fcRequest(
     method: 'GET' | 'PUT' | 'PATCH',
     path: string,
     body?: object
@@ -233,7 +239,7 @@ export class FirecrackerSession extends Session {
                 message = ''
               }
               log.error(`request error: ${statusCode} ${message}`)
-              return reject()
+              return reject(new Error(message))
             }
             if (body.length > 0) resolve(JSON.parse(body))
             else resolve()
