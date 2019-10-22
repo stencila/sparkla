@@ -18,10 +18,6 @@ cover:
 build:
 	npm run build
 
-images:
-	$(MAKE) -C guest/kernel/default
-	$(MAKE) -C guest/rootfs/alpine
-
 docs:
 	npm run docs
 .PHONY: docs
