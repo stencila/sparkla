@@ -1,4 +1,4 @@
-import { Node, isA, SoftwareSession } from '@stencila/schema'
+import { Node, isA, SoftwareSession, CodeChunk } from '@stencila/schema'
 import {
   Executor,
   VsockFirecrackerClient,
@@ -78,7 +78,14 @@ export class Manager extends Executor {
         return node
       }
 
-      return instance.execute(node)
+      // TODO: Remove these workarounds pending change to schema
+      // The Python executor quite rightly baulks at extra properties
+      // so we need to remove it before executing and then put it back in
+      // so that the logic of this method still works.
+      // @ts-ignore that `session` is not a property of a `CodeChunk` yet
+      const { session: sessionToLeaveOut, ...rest } = node
+      const executedNode = (await instance.execute(rest)) as CodeChunk
+      return { ...executedNode, session: sessionToLeaveOut }
     }
     return node
   }
@@ -90,6 +97,10 @@ export class Manager extends Executor {
         // Session has already begun, so just return
         return node
       } else {
+        if (Object.keys(this.sessions).length >= 25) {
+          throw new Error(`Sessions number limit reached`)
+        }
+
         // Session needs to begin...
         const instance = new this.SessionType()
 
