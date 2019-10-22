@@ -54,7 +54,6 @@ Options:
 - `--docker`: run sessions as Docker containers
 - `--debug`: emit debug log messages
 
-
 ## Development
 
 ```bash

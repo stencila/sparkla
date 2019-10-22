@@ -10,7 +10,12 @@
  *    JWT_SECRET=not-a-secret node dist/host/cli
  */
 
-import { defaultHandler, LogLevel, replaceHandlers, getLogger } from '@stencila/logga'
+import {
+  defaultHandler,
+  LogLevel,
+  replaceHandlers,
+  getLogger
+} from '@stencila/logga'
 import { Manager, SessionType } from './Manager'
 import { FirecrackerSession } from './FirecrackerSession'
 import { DockerSession } from './DockerSession'
