@@ -25,10 +25,15 @@ const log = getLogger('sparkla:cli')
 // Collect options from command line
 let debug = false
 let sessionType: SessionType = FirecrackerSession
-for (const arg of process.argv.slice(2)) {
+let host: string | undefined
+let port: number | undefined
+for (let index = 2; index < process.argv.length; index++) {
+  const arg = process.argv[index]
   if (arg === '--debug') debug = true
   else if (arg === '--docker') sessionType = DockerSession
   else if (arg === '--firecracker') sessionType = FirecrackerSession
+  else if (arg === '--host') host = process.argv[++index]
+  else if (arg === '--port') port = parseFloat(process.argv[++index])
   else {
     log.warn(`Unrecognised argument will be ignored: ${arg}`)
   }
@@ -45,7 +50,7 @@ replaceHandlers(data => {
 })
 
 // Create and start manager using specified session class
-const manager = new Manager(sessionType)
+const manager = new Manager(sessionType, host, port)
 manager.start().catch(error => {
   throw error
 })

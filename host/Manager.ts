@@ -10,6 +10,7 @@ import { Session } from './Session'
 import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { getLogger } from '@stencila/logga'
+import { WebSocketAddress } from '@stencila/executa/dist/lib/base/Transports'
 
 const log = getLogger('sparkla:manager')
 export interface SessionType {
@@ -35,7 +36,7 @@ export class Manager extends Executor {
    */
   private sessions: { [key: string]: Session } = {}
 
-  constructor(sessionType: SessionType) {
+  constructor(sessionType: SessionType, host = '127.0.0.1', port = 9000) {
     super(
       // No peer discovery functions are required at present. Instead, this
       // class keeps track of `Session`s which it delegate to based on
@@ -45,7 +46,7 @@ export class Manager extends Executor {
       [sessionType === FirecrackerSession ? VsockFirecrackerClient : TcpClient],
       // Websocket server for receiving requests
       // from browser based clients (also provides HTTP endpoints)
-      [new WebSocketServer()]
+      [new WebSocketServer(new WebSocketAddress({ host, port }))]
     )
 
     this.SessionType = sessionType
