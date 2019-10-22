@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Compute sessions for executable documents: fast-to-start, isolated, reproducible. Pick any three.",
   "main": "index.js",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "lint": "eslint 'host/**/*.{ts,js}' --fix",
     "format": "npx prettier --write './**/*.{js,json,md,ts,yaml}'",

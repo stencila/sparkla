@@ -1,33 +1,43 @@
-import { Node, isA } from '@stencila/schema'
+import { Node, isA, SoftwareSession } from '@stencila/schema'
 import {
   Executor,
   VsockFirecrackerClient,
   TcpClient,
   WebSocketServer
 } from '@stencila/executa'
+import crypto from 'crypto'
 import { Session } from './Session'
 import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
+import { getLogger } from '@stencila/logga'
 
+const log = getLogger('sparkla:manager')
 export interface SessionType {
   new (): FirecrackerSession | DockerSession
 }
 
 export class Manager extends Executor {
   /**
-   * The class of machines used by this executor.
+   * The class of sessions (e.g. `FirecrackerSession`) created.
    */
   public readonly SessionType: SessionType
 
   /**
-   * A dictionary of machines to which
-   * execution will be delegated.
+   * The default `SoftwareSession` node to be created if not specified.
+   */
+  public readonly sessionDefault = {
+    type: 'SoftwareSession',
+    environment: { type: 'Environment', name: 'stencila/sparkla-ubuntu' }
+  }
+
+  /**
+   * Sessions managed by this manager.
    */
   private sessions: { [key: string]: Session } = {}
 
   constructor(sessionType: SessionType) {
     super(
-      // No peer discovery functions are required because instead this
+      // No peer discovery functions are required at present. Instead, this
       // class keeps track of `Session`s which it delegate to based on
       // the `session` property of nodes.
       [],
@@ -43,26 +53,57 @@ export class Manager extends Executor {
 
   async execute(node: Node): Promise<Node> {
     if (isA('CodeChunk', node)) {
-      // @ts-ignore that session is not a property at present
-      if (node.session === undefined) {
-        const session = await this.begin({
-          type: 'SoftwareSession'
-        })
+      // @ts-ignore that `session` is not a property of a `CodeChunk` yet
+      const session: SoftwareSession | undefined = node.session
+      if (session === undefined) {
+        // Code chunk does not have a `session` associated with it so
+        // begin a default one.
+        const session = await this.begin(this.sessionDefault)
         return this.execute({ ...node, session })
       }
+
+      // Code chunk has a session already, make sure it is started.
+      // @ts-ignore that `began` is not a property of a `SoftwareSession` yet
+      const { id, began } = session
+      if (id === undefined || began === undefined) {
+        // Start the session...
+        const begunSession = await this.begin(session)
+        return this.execute({ ...node, session: begunSession })
+      }
+
+      // Get the session and get it to execute the node
+      const instance = this.sessions[id]
+      if (instance === undefined) {
+        log.warn(`No instance with id; already deleted, mis-routed?: ${id}`)
+        return node
+      }
+
+      return instance.execute(node)
     }
     return node
   }
 
   async begin(node: Node): Promise<Node> {
     if (isA('SoftwareSession', node)) {
-      if (node.id !== undefined) return node
-      else {
-        const session = new this.SessionType()
-        const begun = await session.begin(node)
-        if (begun.id === undefined) return begun
-        this.sessions[begun.id] = session
-        return begun
+      // @ts-ignore that `began` is not a property of a `SoftwareSession` yet
+      if (node.began !== undefined) {
+        // Session has already begun, so just return
+        return node
+      } else {
+        // Session needs to begin...
+        const instance = new this.SessionType()
+
+        // Assign a unique, difficult to guess, identifier
+        // that still allows routing back to this `Manager` instance
+        // TODO: make this a URI that allows for routing back to the manager
+        const id = crypto.randomBytes(32).toString('hex')
+        this.sessions[id] = instance
+
+        // Actually start the session and return the updated
+        // `SoftwareSession` node.
+        const begunSession = await instance.begin(node)
+        const began = Date.now()
+        return { ...begunSession, id, began }
       }
     }
     return node
@@ -70,14 +111,17 @@ export class Manager extends Executor {
 
   async end(node: Node): Promise<Node> {
     if (isA('SoftwareSession', node)) {
-      if (node.id === undefined) return node
-      const session = this.sessions[node.id]
-      if (session !== undefined) {
-        const ended = await session.end(node)
-        if (ended.id === undefined) return ended
-        delete this.sessions[ended.id]
-        return ended
-      }
+      const { id } = node
+      if (id === undefined) return node
+
+      const instance = this.sessions[id]
+      if (instance === undefined) return node
+
+      const endedSession = await instance.end(node)
+      const ended = Date.now()
+      delete this.sessions[id]
+
+      return { ...endedSession, ended }
     }
     return node
   }

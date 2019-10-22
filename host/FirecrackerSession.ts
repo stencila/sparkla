@@ -180,6 +180,11 @@ export class FirecrackerSession extends Session {
     return node
   }
 
+  execute(node: Node): Promise<Node> {
+    // TODO
+    return Promise.resolve(node)
+  }
+
   info(): Promise<object> {
     return this.fcGet('/')
   }
