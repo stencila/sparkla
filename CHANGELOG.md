@@ -1,3 +1,16 @@
+# [0.3.0](https://github.com/stencila/sparkla/compare/v0.2.0...v0.3.0) (2019-10-22)
+
+
+### Bug Fixes
+
+* **Manager:** Don't pass on properties that are not in schema ([536b31a](https://github.com/stencila/sparkla/commit/536b31aa9451009105b7de3e835d3697eda9151a))
+* **rootfs/ubuntu:** Add Python and JS executors ([ceacc11](https://github.com/stencila/sparkla/commit/ceacc11f0321ffa4e871f9118277c388914c6f5c))
+
+
+### Features
+
+* **Manager:** Add options for host and port to serve on ([c4cfb59](https://github.com/stencila/sparkla/commit/c4cfb592303fee09e6f5df963aa355591d5c7605))
+
 # [0.2.0](https://github.com/stencila/sparkla/compare/v0.1.0...v0.2.0) (2019-10-22)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "@stencila/sparkla",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Compute sessions for executable documents: fast-to-start, isolated, reproducible. Pick any three.",
   "main": "index.js",
   "bin": "./dist/cli.js",
