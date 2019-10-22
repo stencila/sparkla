@@ -22,5 +22,15 @@ RUN mkdir -p /etc/init \
             exec /usr/bin/executa    \n'\
     >> /etc/init/executa.conf
 
+# Install and register Python executor
+RUN apt-get install -y \
+      python3 python3-pip
+RUN pip3 install -i https://test.pypi.org/simple/ stencila-schema==0.30.1
+RUN python3 -m stencila.schema register
+
+# Install and register Javascript executor
+RUN npm install --global @stencila/schema @stencila/logga minimist
+RUN node /usr/lib/node_modules/@stencila/schema/dist/interpreter.js register
+
 # Run Execta by default when in a Docker container
 CMD node /usr/bin/executa serve --stdio
