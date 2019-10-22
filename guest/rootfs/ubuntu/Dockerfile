@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:18.10
 
 # Install system dependencies
 RUN apt-get update -y
