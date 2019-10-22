@@ -8,10 +8,10 @@ set -e
 NAME=sparkla-$(basename $PWD)
 
 # Build the Docker image from the `Dockerfile` in this folder
-docker build --tag "$NAME" .
+docker build --tag "stencila/$NAME" .
 
 # Export the image's filesystem to a tar archive
-docker create --name "$NAME" "$NAME"
+docker create --name "$NAME" "stencila/$NAME"
 docker export --output rootfs.tar "$NAME"
 docker rm "$NAME"
 
