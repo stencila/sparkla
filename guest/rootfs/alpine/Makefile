@@ -3,3 +3,6 @@ rootfs.ext4: Dockerfile
 
 clean:
 	rm -rf rootfs.*
+
+docker-image:
+	docker build --tag stencila/sparkla-alpine .

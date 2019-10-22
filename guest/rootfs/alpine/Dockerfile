@@ -37,14 +37,18 @@ RUN ln -s agetty /etc/init.d/agetty.ttyS0 \
 # Set up the execution server
 RUN apk add --update \
       nodejs         \
-      npm
-WORKDIR /usr/bin/execution-server
-RUN npm install --save \
-      length-prefixed-stream
+      npm            \
+      python3
+RUN npm install --save @stencila/schema
+RUN npm install --save @stencila/executa
+RUN pip3 install -i https://test.pypi.org/simple/ stencila-schema==0.30.1
+RUN python3 -m stencila.schema register
+RUN node /node_modules/@stencila/schema/dist/interpreter.js register
+
 COPY --from=0 /vsock-server /usr/bin
-COPY execution-server.js /usr/bin/execution-server/index.js
-COPY execution-server.sh /etc/init.d/execution-server
-RUN rc-update add execution-server default
+
+COPY executa.sh /etc/init.d/executa
+RUN rc-update add executa default
 
 # Docker command just to test the execution server will start
-CMD node /usr/bin/execution-server
+CMD /usr/bin/node /node_modules/@stencila/executa/dist/lib/cli.js --stdio
