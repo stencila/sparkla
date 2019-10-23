@@ -42,7 +42,7 @@ RUN apk add --update \
       python3
 RUN npm install --save @stencila/schema
 RUN npm install --save @stencila/executa
-RUN pip3 install -i https://test.pypi.org/simple/ stencila-schema==0.30.1
+RUN pip3 install -i https://test.pypi.org/simple/ stencila-schema==0.30.3
 RUN python3 -m stencila.schema register
 RUN node /node_modules/@stencila/schema/dist/interpreter.js register
 
