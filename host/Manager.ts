@@ -2,15 +2,15 @@ import {
   Executor,
   TcpClient,
   VsockFirecrackerClient,
+  WebSocketAddress,
   WebSocketServer
 } from '@stencila/executa'
 import { getLogger } from '@stencila/logga'
-import { CodeChunk, isA, Node, SoftwareSession } from '@stencila/schema'
+import { isA, Node, SoftwareSession } from '@stencila/schema'
 import crypto from 'crypto'
 import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { Session } from './Session'
-import { WebSocketAddress } from '@stencila/executa/dist/lib/base/Transports'
 
 const log = getLogger('sparkla:manager')
 export interface SessionType {

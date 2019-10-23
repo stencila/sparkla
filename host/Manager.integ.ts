@@ -3,17 +3,16 @@
  * a local, or remote, instance of Sparkla `Manager`.
  *
  * To run against a remote instance set the `MANAGER_URL`
- * env var e.g.
+ * and `JWT_SECRET` environment variables e.g.
  *
  * ```bash
- * MANAGER_URL=123.3.54.12:9000 jest Manager.integ.ts
+ * MANAGER_URL=12.34.56.78:9000 JWT_SECRET=not-a-secret npx jest Manager.integ.ts
  * ```
  */
 
-import { WebSocketClient } from '@stencila/executa'
+import { WebSocketAddress, WebSocketClient } from '@stencila/executa'
 import { Manager } from './Manager'
 import { DockerSession } from './DockerSession'
-import { WebSocketAddress } from '@stencila/executa/dist/lib/base/Transports'
 import {
   softwareSession,
   environment,
@@ -21,30 +20,46 @@ import {
   SoftwareSession,
   CodeChunk
 } from '@stencila/schema'
+import JWT from 'jsonwebtoken'
 
 let manager: Manager
 let client: WebSocketClient
 
-let url = process.env.MANAGER_URL
-// TODO: a way of easily setting this per target Manager
-const jwt =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1NzE4MDcxMDh9.q181aVgHK9VLzYvVYkCAIZbHuCKDzhndBYr0fYMs_ko'
-
 beforeAll(async () => {
+  const url = process.env.MANAGER_URL
+  let address: WebSocketAddress
   if (url === undefined) {
-    process.env.JWT_SECRET = 'not-a-secret'
-    url = '127.0.0.1:9000'
-
+    // Need to ensure a JWT secret is set
+    if (process.env.JWT_SECRET === undefined) {
+      process.env.JWT_SECRET = 'not-a-secret'
+    }
+    // Start a manager locally and get it's
+    // address (which contains a JWT)
     manager = new Manager(DockerSession)
     await manager.start()
+    address = manager.addresses().ws as WebSocketAddress
+  } else {
+    // Construct a "empty" JWT using the secret
+    const secret = process.env.JWT_SECRET
+    if (secret === undefined) {
+      throw new Error('Environment variable JWT_SECRET must be set')
+    }
+    const jwt = JWT.sign({}, secret)
+    address = new WebSocketAddress(url, '', jwt)
   }
-  client = new WebSocketClient(new WebSocketAddress(url, '', jwt))
+  console.info(
+    `Connecting to manager with address:\n${JSON.stringify(
+      address,
+      null,
+      '  '
+    )}`
+  )
+  client = new WebSocketClient(address)
 })
 
 afterAll(async () => {
   if (manager !== undefined) await manager.stop()
-  // TODO: In Executa add stop() method to WebSocketClient
-  // if (client !== undefined) await client.stop()
+  if (client !== undefined) await client.stop()
 })
 
 jest.setTimeout(5 * 60 * 1000)
