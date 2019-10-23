@@ -1,5 +1,5 @@
 import { StdioClient } from '@stencila/executa'
-import { SoftwareSession, environment, Node } from '@stencila/schema'
+import { SoftwareSession, Node } from '@stencila/schema'
 import { Session } from './Session'
 
 export class DockerSession extends Session {

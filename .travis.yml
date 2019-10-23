@@ -5,10 +5,27 @@ node_js:
 services:
   - docker
 
+cache:
+  directories:
+  - docker_images
+
+# Cache Docker images for faster rebuilds
+# Based on https://github.com/travis-ci/travis-ci/issues/5358#issuecomment-542672812
+
+before_install:
+  - docker load -i docker_images/images.tar || true
+
+before_cache:
+  - docker save -o docker_images/images.tar $(docker images -a -q)
+
+
 script:
   - npm run lint
+  - npm run test:unit -- --forceExit
   - npm run build
   - make rootfs-dockers
+  - npm run test:integ -- --forceExit
+
 
 deploy:
   # Do a semantic release
