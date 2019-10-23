@@ -2,16 +2,23 @@ language: node_js
 node_js:
   - '10'
 
+services:
+  - docker
+
 script:
   - npm run lint
   - npm run build
+  - make rootfs-dockers
 
 deploy:
-  # Do a semantic release (only on Linux)
+  # Do a semantic release
   - provider: script
     skip_cleanup: true
     script: npx semantic-release
     on:
       branch: master
-      condition: $TRAVIS_OS_NAME = linux
-
+  # Push Docker images
+  - provider: script
+    script: make rootfs-push
+    on:
+      branch: master

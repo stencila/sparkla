@@ -10,8 +10,9 @@ RUN apk add          \
       gcc            \
       linux-headers
 
-COPY vsock-server.c .
-RUN gcc -o vsock-server vsock-server.c
+# TODO: Build vsock-server which is now in Executa
+#COPY vsock-server.c .
+#RUN gcc -o vsock-server vsock-server.c
 
 # Filesystem stage
 # With dependencies copied from build stage
@@ -45,7 +46,7 @@ RUN pip3 install -i https://test.pypi.org/simple/ stencila-schema==0.30.1
 RUN python3 -m stencila.schema register
 RUN node /node_modules/@stencila/schema/dist/interpreter.js register
 
-COPY --from=0 /vsock-server /usr/bin
+#COPY --from=0 /vsock-server /usr/bin
 
 COPY executa.sh /etc/init.d/executa
 RUN rc-update add executa default

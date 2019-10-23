@@ -1,14 +1,11 @@
 #! /bin/sh
 
-# Script to create a `rootfs.ext4` from a Dockerfile
+# Script to create a `rootfs.ext4` from a Docker image
 
 set -e
 
-# Name to use for the Docker image and temporary container
+# Name of the Docker image and to use for the temporary Docker container
 NAME=sparkla-$(basename $PWD)
-
-# Build the Docker image from the `Dockerfile` in this folder
-docker build --tag "stencila/$NAME" .
 
 # Export the image's filesystem to a tar archive
 docker create --name "$NAME" "stencila/$NAME"

@@ -18,6 +18,15 @@ cover:
 build:
 	npm run build
 
+rootfs-dockers:
+	make -C guest/rootfs/alpine docker
+	make -C guest/rootfs/ubuntu docker
+
+rootfs-push:
+	@echo "$$DOCKER_PASSWORD" | docker login -u "$$DOCKER_USERNAME" --password-stdin
+	make -C guest/rootfs/alpine push
+	make -C guest/rootfs/ubuntu push
+
 docs:
 	npm run docs
 .PHONY: docs
