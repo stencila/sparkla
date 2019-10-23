@@ -1,11 +1,16 @@
-import { Executor, TcpClient, VsockFirecrackerClient, WebSocketServer } from '@stencila/executa';
-import { getLogger } from '@stencila/logga';
-import { CodeChunk, isA, Node, SoftwareSession } from '@stencila/schema';
-import crypto from 'crypto';
-import { DockerSession } from './DockerSession';
-import { FirecrackerSession } from './FirecrackerSession';
-import { Session } from './Session';
-import { WebSocketAddress } from '@stencila/executa/dist/lib/base/Transports';
+import {
+  Executor,
+  TcpClient,
+  VsockFirecrackerClient,
+  WebSocketServer
+} from '@stencila/executa'
+import { getLogger } from '@stencila/logga'
+import { CodeChunk, isA, Node, SoftwareSession } from '@stencila/schema'
+import crypto from 'crypto'
+import { DockerSession } from './DockerSession'
+import { FirecrackerSession } from './FirecrackerSession'
+import { Session } from './Session'
+import { WebSocketAddress } from '@stencila/executa/dist/lib/base/Transports'
 
 const log = getLogger('sparkla:manager')
 export interface SessionType {
@@ -57,7 +62,7 @@ export class Manager extends Executor {
       let { id, began } = session
       if (id === undefined || began === undefined) {
         // Start the session...
-        ({ id } = await this.begin(session) as SoftwareSession)
+        ;({ id } = (await this.begin(session)) as SoftwareSession)
       }
       if (id === undefined) {
         log.warn(`No id assigned to session: ${id}`)
@@ -70,7 +75,7 @@ export class Manager extends Executor {
         log.warn(`No instance with id; already deleted, mis-routed?: ${id}`)
         return node
       }
-      return await instance.execute(node)
+      return instance.execute(node)
     }
     return node
   }
