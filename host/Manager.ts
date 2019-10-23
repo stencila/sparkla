@@ -1,16 +1,11 @@
-import { Node, isA, SoftwareSession, CodeChunk } from '@stencila/schema'
-import {
-  Executor,
-  VsockFirecrackerClient,
-  TcpClient,
-  WebSocketServer
-} from '@stencila/executa'
-import crypto from 'crypto'
-import { Session } from './Session'
-import { DockerSession } from './DockerSession'
-import { FirecrackerSession } from './FirecrackerSession'
-import { getLogger } from '@stencila/logga'
-import { WebSocketAddress } from '@stencila/executa/dist/lib/base/Transports'
+import { Executor, TcpClient, VsockFirecrackerClient, WebSocketServer } from '@stencila/executa';
+import { getLogger } from '@stencila/logga';
+import { CodeChunk, isA, Node, SoftwareSession } from '@stencila/schema';
+import crypto from 'crypto';
+import { DockerSession } from './DockerSession';
+import { FirecrackerSession } from './FirecrackerSession';
+import { Session } from './Session';
+import { WebSocketAddress } from '@stencila/executa/dist/lib/base/Transports';
 
 const log = getLogger('sparkla:manager')
 export interface SessionType {
@@ -26,7 +21,7 @@ export class Manager extends Executor {
   /**
    * The default `SoftwareSession` node to be created if not specified.
    */
-  public readonly sessionDefault = {
+  public readonly sessionDefault: SoftwareSession = {
     type: 'SoftwareSession',
     environment: { type: 'Environment', name: 'stencila/sparkla-ubuntu' }
   }
@@ -52,41 +47,30 @@ export class Manager extends Executor {
     this.SessionType = sessionType
   }
 
-  async execute(node: Node): Promise<Node> {
+  async execute(node: Node, session?: SoftwareSession): Promise<Node> {
     if (isA('CodeChunk', node)) {
-      // @ts-ignore that `session` is not a property of a `CodeChunk` yet
-      const session: SoftwareSession | undefined = node.session
-      if (session === undefined) {
-        // Code chunk does not have a `session` associated with it so
-        // begin a default one.
-        const session = await this.begin(this.sessionDefault)
-        return this.execute({ ...node, session })
-      }
+      // No session provided, so use the default
+      if (session === undefined) session = this.sessionDefault
 
-      // Code chunk has a session already, make sure it is started.
+      // Make sure the session is started
       // @ts-ignore that `began` is not a property of a `SoftwareSession` yet
-      const { id, began } = session
+      let { id, began } = session
       if (id === undefined || began === undefined) {
         // Start the session...
-        const begunSession = await this.begin(session)
-        return this.execute({ ...node, session: begunSession })
+        ({ id } = await this.begin(session) as SoftwareSession)
+      }
+      if (id === undefined) {
+        log.warn(`No id assigned to session: ${id}`)
+        return node
       }
 
-      // Get the session and get it to execute the node
+      // Get the session `instance` and ask it to execute the node
       const instance = this.sessions[id]
       if (instance === undefined) {
         log.warn(`No instance with id; already deleted, mis-routed?: ${id}`)
         return node
       }
-
-      // TODO: Remove these workarounds pending change to schema
-      // The Python executor quite rightly baulks at extra properties
-      // so we need to remove it before executing and then put it back in
-      // so that the logic of this method still works.
-      // @ts-ignore that `session` is not a property of a `CodeChunk` yet
-      const { session: sessionToLeaveOut, ...rest } = node
-      const executedNode = (await instance.execute(rest)) as CodeChunk
-      return { ...executedNode, session: sessionToLeaveOut }
+      return await instance.execute(node)
     }
     return node
   }
@@ -98,10 +82,6 @@ export class Manager extends Executor {
         // Session has already begun, so just return
         return node
       } else {
-        if (Object.keys(this.sessions).length >= 25) {
-          throw new Error(`Sessions number limit reached`)
-        }
-
         // Session needs to begin...
         const instance = new this.SessionType()
 
