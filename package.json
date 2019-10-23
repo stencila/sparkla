@@ -10,6 +10,9 @@
   "scripts": {
     "lint": "eslint 'host/**/*.{ts,js}' --fix",
     "format": "npx prettier --write './**/*.{js,json,md,ts,yaml}'",
+    "test": "npm run test:unit && npm run test:integ",
+    "test:unit": "jest --testPathPattern=\\.test\\.ts$",
+    "test:integ": "jest --testPathPattern=\\.integ\\.ts$",
     "build": "tsc",
     "serve": "node dist/cli",
     "serve:dev": "JWT_SECRET=not-a-secret ts-node-dev host/cli --debug"
@@ -17,6 +20,9 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@stencila/dev-config": "1.2.2",
+    "@types/jest": "24.0.19",
+    "jest": "24.9.0",
+    "ts-jest": "24.1.0",
     "ts-node": "8.4.1",
     "ts-node-dev": "1.0.0-pre.42",
     "typescript": "3.6.3"
@@ -45,7 +51,17 @@
     }
   },
   "eslintConfig": {
-    "extends": "@stencila/eslint-config"
+    "extends": "@stencila/eslint-config",
+    "env": {
+      "jest": true
+    }
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/**/*.(test|integ).[jt]s"
+    ]
   },
   "husky": {
     "hooks": {
