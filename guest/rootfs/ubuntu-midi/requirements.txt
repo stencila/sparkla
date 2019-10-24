@@ -1,0 +1,6 @@
+# A Python `pip` file for specifying dependencies of the
+# Sparkla ubuntu-midi environment.
+# Please add any additional packages in alphabetical order
+
+matplotlib
+numpy

@@ -1,0 +1,12 @@
+{
+  "name": "sparkla-ubuntu-midi",
+  "version": "1.0.0",
+  "description": "A Node.js package for specifying dependencies of the Sparkla `ubuntu-midi` environment",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stencila/sparkla/"
+  },
+  "dependencies": {
+    "simple-statistics": "7.0.5"
+  }
+}
