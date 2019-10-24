@@ -1,3 +1,10 @@
+## [0.3.1](https://github.com/stencila/sparkla/compare/v0.3.0...v0.3.1) (2019-10-24)
+
+
+### Bug Fixes
+
+* **Manager:** Upgrade to executa@0.4.0 and change `execute` accordingly ([a6b2caf](https://github.com/stencila/sparkla/commit/a6b2caf215265f894816de96049f06b79d26dc6b))
+
 # [0.3.0](https://github.com/stencila/sparkla/compare/v0.2.0...v0.3.0) (2019-10-22)
 
 
