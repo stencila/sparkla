@@ -7,6 +7,7 @@ import { promisify } from 'util'
 import { Session } from './Session'
 import { getLogger } from '@stencila/logga'
 import { SoftwareSession } from '@stencila/schema'
+import { SparklaSoftwareSession } from './Manager'
 
 const spawn = childProcess.spawn
 const exec = promisify(childProcess.exec)
@@ -93,7 +94,7 @@ export class FirecrackerSession extends Session {
   /* eslint-disable @typescript-eslint/camelcase */
 
   async begin(
-    node: SoftwareSession,
+    node: SoftwareSession | SparklaSoftwareSession,
     options: { attach?: boolean } = {}
   ): Promise<SoftwareSession> {
     const { attach = false } = options
