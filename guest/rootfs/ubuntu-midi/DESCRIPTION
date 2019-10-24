@@ -1,0 +1,8 @@
+Package: sparklaubuntumidi
+Version: 1.0.0
+Date: 2019-10-23
+Description:
+  A R package for specifying dependencies of the Sparkla ubuntu-midi environment.
+Imports:
+  rgdal,
+  tidyverse
