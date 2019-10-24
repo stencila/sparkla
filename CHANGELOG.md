@@ -1,3 +1,17 @@
+# [0.4.0](https://github.com/stencila/sparkla/compare/v0.3.1...v0.4.0) (2019-10-24)
+
+
+### Bug Fixes
+
+* **Ubuntu-Midi:** Fix DESCRIPTION syntax ([592d595](https://github.com/stencila/sparkla/commit/592d595ab232ef9df085337f308d3a7a7bf6b474))
+* **Ubuntu-Midi:** Update Dockta and fix compile command ([bf4c30f](https://github.com/stencila/sparkla/commit/bf4c30ff33397e85209cd3a22e5b20fd5043596b))
+* **Ubuntu-Midi:** Update Dockta command so it works! ([9467788](https://github.com/stencila/sparkla/commit/9467788e28605e5141917f24f4c7cfea897c0666))
+
+
+### Features
+
+* **Ubuntu-Midi rootfs:** Add Dockta based image ([d26c8f1](https://github.com/stencila/sparkla/commit/d26c8f1da9b8316366ef180d2e81f17f331c5a2a))
+
 ## [0.3.1](https://github.com/stencila/sparkla/compare/v0.3.0...v0.3.1) (2019-10-24)
 
 
