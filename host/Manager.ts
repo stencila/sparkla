@@ -7,12 +7,12 @@ import {
 } from '@stencila/executa'
 import { getLogger } from '@stencila/logga'
 import {
-  Environment,
+  SoftwareEnvironment,
   isA,
-  Mount,
   Node,
   SoftwareSession,
-  mount
+  softwareSession,
+  softwareEnvironment
 } from '@stencila/schema'
 import crypto from 'crypto'
 import { DockerSession } from './DockerSession'
@@ -25,27 +25,6 @@ export interface SessionType {
   new (): FirecrackerSession | DockerSession
 }
 
-/**
- * The properties defined by the JWT.
- */
-interface JwtLimits {
-  mem?: number
-  cpu?: number
-  vol?: [string, string, string][]
-}
-
-/**
- * A slightly different interface than SoftwareSession
- */
-export interface SparklaSoftwareSession {
-  environment: Environment
-  cpuRequested?: number
-  cpuLimit?: number
-  memoryRequested?: number
-  memoryLimit?: number
-  volumeMounts?: Mount[]
-}
-
 function optionalMin(a?: number, b?: number): number | undefined {
   if (a === undefined && b === undefined) return undefined
   if (a === undefined) return b
@@ -54,39 +33,25 @@ function optionalMin(a?: number, b?: number): number | undefined {
   return Math.min(a, b)
 }
 
+/**
+ * Apply the limits from `limitedSession` to the `session`.
+ *
+ * @param session
+ * @param limitedSession
+ */
 function applySessionLimits(
   session: SoftwareSession,
-  limits: JwtLimits
-): SparklaSoftwareSession {
-  const limitedSession: SparklaSoftwareSession = {
-    environment: session.environment,
-    cpuLimit: limits.cpu,
-    memoryLimit: limits.mem
-  }
+  limitedSession: SoftwareSession
+): SoftwareSession {
+  session.cpuLimit = optionalMin(session.cpuLimit, limitedSession.cpuLimit)
+  session.memoryLimit = optionalMin(
+    session.memoryLimit,
+    limitedSession.memoryLimit
+  )
 
-  if (session.cpuResource !== undefined) {
-    limitedSession.cpuRequested = session.cpuResource.resourceRequested
-    limitedSession.cpuLimit = optionalMin(
-      session.cpuResource.resourceLimit,
-      limits.cpu
-    )
-  }
+  session.volumeMounts = limitedSession.volumeMounts
 
-  if (session.memoryResource !== undefined) {
-    limitedSession.memoryRequested = session.memoryResource.resourceRequested
-    limitedSession.memoryLimit = optionalMin(
-      session.memoryResource.resourceLimit,
-      limits.mem
-    )
-  }
-
-  if (limits.vol !== undefined) {
-    limitedSession.volumeMounts = limits.vol.map(vol => {
-      return mount(vol[1], { mountSource: vol[0], mountOptions: [vol[2]] })
-    })
-  }
-
-  return limitedSession
+  return session
 }
 
 export class Manager extends Executor {
@@ -100,7 +65,10 @@ export class Manager extends Executor {
    */
   public readonly sessionDefault: SoftwareSession = {
     type: 'SoftwareSession',
-    environment: { type: 'Environment', name: 'stencila/sparkla-ubuntu' }
+    environment: {
+      type: 'SoftwareEnvironment',
+      name: 'stencila/sparkla-ubuntu'
+    }
   }
 
   /**
@@ -153,11 +121,7 @@ export class Manager extends Executor {
   }
 
   async begin(node: Node): Promise<Node> {
-    const limits: JwtLimits = {
-      mem: 0.75,
-      cpu: 2,
-      vol: [['/projects/232', '/projects', 'ro']]
-    }
+    const sessionLimits = softwareSession(softwareEnvironment('null')) // should come from JWT
 
     if (isA('SoftwareSession', node)) {
       // @ts-ignore that `began` is not a property of a `SoftwareSession` yet
@@ -177,7 +141,7 @@ export class Manager extends Executor {
         // Actually start the session and return the updated
         // `SoftwareSession` node.
         const begunSession = await instance.begin(
-          applySessionLimits(node, limits)
+          applySessionLimits(node, sessionLimits)
         )
         const began = Date.now()
         return { ...begunSession, id, began }

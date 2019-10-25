@@ -15,7 +15,7 @@ import { Manager } from './Manager'
 import { DockerSession } from './DockerSession'
 import {
   softwareSession,
-  environment,
+  softwareEnvironment,
   codeChunk,
   SoftwareSession,
   CodeChunk
@@ -66,7 +66,6 @@ afterAll(async () => {
 jest.setTimeout(5 * 60 * 1000)
 
 describe('Manager', () => {
-
   /**
    * Get the manager's manifest, and check it has
    * the expected properties
@@ -83,7 +82,7 @@ describe('Manager', () => {
    */
   test('begin and end: SoftwareSession', async () => {
     let session = await client.begin(
-      softwareSession(environment('stencila/sparkla-alpine'))
+      softwareSession(softwareEnvironment('stencila/sparkla-alpine'))
     )
     expect(session).toHaveProperty('id')
     expect(session).toHaveProperty('began')
@@ -97,17 +96,16 @@ describe('Manager', () => {
    */
   test('execute: Python CodeChunk in Ubuntu environment', async () => {
     const session = (await client.begin(
-      softwareSession(environment('stencila/sparkla-ubuntu'))
+      softwareSession(softwareEnvironment('stencila/sparkla-ubuntu'))
     )) as SoftwareSession
     let chunk
 
     // TODO: Reinstate when `StreamClient` is working with dockerode
-    /*
-    chunk = (await client.execute(
+
+    /*chunk = (await client.execute(
       codeChunk('a = 3', {
         programmingLanguage: 'python'
-      }),
-      session
+      })
     )) as CodeChunk
     expect(chunk).toHaveProperty('outputs')
     expect(chunk.outputs).toEqual([])
@@ -115,13 +113,12 @@ describe('Manager', () => {
     chunk = (await client.execute(
       codeChunk('a * 2', {
         programmingLanguage: 'python'
-      }),
-      session
+      })
     )) as CodeChunk
     expect(chunk).toHaveProperty('outputs')
     expect(chunk.outputs).toEqual([6])
-    */
 
-    await client.end(session)
+
+    await client.end(session)*/
   })
 })
