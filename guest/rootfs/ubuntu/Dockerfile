@@ -22,14 +22,20 @@ RUN mkdir -p /etc/init \
             exec /usr/bin/executa    \n'\
     >> /etc/init/executa.conf
 
-# Install and register Python executor
+# Install Python executor
 RUN apt-get install -y \
       python3 python3-pip
-RUN pip3 install -i https://test.pypi.org/simple/ stencila-schema==0.30.3
-RUN python3 -m stencila.schema register
+RUN pip3 install -i https://test.pypi.org/simple/ stencila-schema==0.30.5
 
-# Install and register Javascript executor
+# Install Javascript executor
 RUN npm install --global @stencila/schema @stencila/logga minimist
+
+# Setup the same user that Dockta will use, so that registered manifests go to the right place
+RUN id -u guest >/dev/null 2>&1 || useradd --create-home --uid 1001 -s /bin/bash guest
+USER guest
+
+# Register Manifests
+RUN python3 -m stencila.schema register
 RUN node /usr/lib/node_modules/@stencila/schema/dist/interpreter.js register
 
 # Run Executa by default when in a Docker container
