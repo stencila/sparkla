@@ -29,7 +29,10 @@ session
   .begin(
     {
       type: 'SoftwareSession',
-      environment: { type: 'Environment', name: 'stencila/sparkla-alpine' }
+      environment: {
+        type: 'SoftwareEnvironment',
+        name: 'stencila/sparkla-alpine'
+      }
     },
     { attach: true }
   )

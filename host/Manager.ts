@@ -1,10 +1,23 @@
-import { BaseExecutor, TcpClient, VsockFirecrackerClient, WebSocketAddress, WebSocketServer } from '@stencila/executa';
-import { getLogger } from '@stencila/logga';
-import { date, isA, Node, softwareEnvironment, SoftwareSession, softwareSession } from '@stencila/schema';
-import crypto from 'crypto';
-import { DockerSession } from './DockerSession';
-import { FirecrackerSession } from './FirecrackerSession';
-import { Session } from './Session';
+import {
+  BaseExecutor,
+  TcpClient,
+  VsockFirecrackerClient,
+  WebSocketAddress,
+  WebSocketServer
+} from '@stencila/executa'
+import { getLogger } from '@stencila/logga'
+import {
+  date,
+  isA,
+  Node,
+  softwareEnvironment,
+  SoftwareSession,
+  softwareSession
+} from '@stencila/schema'
+import crypto from 'crypto'
+import { DockerSession } from './DockerSession'
+import { FirecrackerSession } from './FirecrackerSession'
+import { Session } from './Session'
 
 const log = getLogger('sparkla:manager')
 
@@ -118,7 +131,7 @@ export class Manager extends BaseExecutor {
 
         // Actually start the session and return the updated
         // `SoftwareSession` node.
-        const begunSession = await instance.begin(sessionPermitted)
+        const begunSession = await instance.begin({ ...sessionPermitted, id })
         const dateStart = date(new Date().toISOString())
         return softwareSession({ ...begunSession, id, dateStart }) as NodeType
       }

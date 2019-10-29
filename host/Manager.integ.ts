@@ -11,16 +11,10 @@
  */
 
 import { WebSocketAddress, WebSocketClient } from '@stencila/executa'
-import { Manager } from './Manager'
-import { DockerSession } from './DockerSession'
-import {
-  softwareSession,
-  softwareEnvironment,
-  codeChunk,
-  SoftwareSession,
-  CodeChunk
-} from '@stencila/schema'
+import { softwareEnvironment, softwareSession } from '@stencila/schema'
 import JWT from 'jsonwebtoken'
+import { DockerSession } from './DockerSession'
+import { Manager } from './Manager'
 
 let manager: Manager
 let client: WebSocketClient
@@ -85,10 +79,10 @@ describe('Manager', () => {
       softwareSession(softwareEnvironment('stencila/sparkla-alpine'))
     )
     expect(session).toHaveProperty('id')
-    expect(session).toHaveProperty('began')
+    expect(session).toHaveProperty('dateStart')
 
     session = await client.end(session)
-    expect(session).toHaveProperty('ended')
+    expect(session).toHaveProperty('dateEnd')
   })
 
   /**
@@ -103,8 +97,8 @@ describe('Manager', () => {
     let chunk
 
     // TODO: Reinstate when `StreamClient` is working with dockerode
-
-    /* chunk = (await client.execute(
+    /*
+    chunk = (await client.execute(
       codeChunk('a = 3', {
         programmingLanguage: 'python'
       })
@@ -119,8 +113,8 @@ describe('Manager', () => {
     )) as CodeChunk
     expect(chunk).toHaveProperty('outputs')
     expect(chunk.outputs).toEqual([6])
+    */
 
-
-    await client.end(session) */
+    await client.end(session)
   })
 })
