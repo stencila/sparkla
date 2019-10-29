@@ -21,7 +21,7 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@stencila/dev-config": "1.2.2",
-    "@stencila/dockta": "0.16.0",
+    "@stencila/dockta": "^0.16.1",
     "@types/dockerode": "^2.5.20",
     "@types/jest": "24.0.20",
     "jest": "24.9.0",
