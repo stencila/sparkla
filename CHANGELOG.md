@@ -1,3 +1,19 @@
+# [0.5.0](https://github.com/stencila/sparkla/compare/v0.4.0...v0.5.0) (2019-10-29)
+
+
+### Bug Fixes
+
+* **DockerSession:** Fix stdio based comms with session container ([974c427](https://github.com/stencila/sparkla/commit/974c427c2c2068e7b0c5b53a22fd24f948c3d9d7))
+* **DockerSession:** Update to new Schema ([2f814c3](https://github.com/stencila/sparkla/commit/2f814c3c5222ce8ad8e574fb9fc2524c8b4eb7df))
+* **DockerSession:** Use dockerode for begin and end of sessions ([ac975c7](https://github.com/stencila/sparkla/commit/ac975c76a7113e7a07e28d004e2a7196fca4cbf3))
+* **Manager:** Upgrade to latest Schema and Executa versions ([ff900e1](https://github.com/stencila/sparkla/commit/ff900e19e81431822fa376ed045cfddf03687048))
+
+
+### Features
+
+* Adding limits to session begin request ([26389fc](https://github.com/stencila/sparkla/commit/26389fca8bef9dd23ac9f824bcd6a0bebaea38cf))
+* Applying session limits to manager session start ([0adcdb2](https://github.com/stencila/sparkla/commit/0adcdb288e122e8aba910e5707007c2526a75a68))
+
 # [0.4.0](https://github.com/stencila/sparkla/compare/v0.3.1...v0.4.0) (2019-10-24)
 
 
