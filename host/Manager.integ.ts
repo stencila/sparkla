@@ -11,7 +11,7 @@
  */
 
 import { WebSocketAddress, WebSocketClient } from '@stencila/executa'
-import { softwareEnvironment, softwareSession } from '@stencila/schema'
+import { softwareEnvironment, softwareSession, codeChunk } from '@stencila/schema'
 import JWT from 'jsonwebtoken'
 import { DockerSession } from './DockerSession'
 import { Manager } from './Manager'
@@ -91,29 +91,26 @@ describe('Manager', () => {
   test('execute: Python CodeChunk in Ubuntu environment', async () => {
     const session = await client.begin(
       softwareSession({
-        environment: softwareEnvironment('stencila/sparkla-ubuntu')
+        environment: softwareEnvironment('stencila/sparkla-ubuntu-midi')
       })
     )
     let chunk
 
-    // TODO: Reinstate when `StreamClient` is working with dockerode
-    /*
-    chunk = (await client.execute(
+    chunk = await client.execute(
       codeChunk('a = 3', {
         programmingLanguage: 'python'
       })
-    )) as CodeChunk
+    )
     expect(chunk).toHaveProperty('outputs')
     expect(chunk.outputs).toEqual([])
 
-    chunk = (await client.execute(
+    chunk = await client.execute(
       codeChunk('a * 2', {
         programmingLanguage: 'python'
       })
-    )) as CodeChunk
+    )
     expect(chunk).toHaveProperty('outputs')
     expect(chunk.outputs).toEqual([6])
-    */
 
     await client.end(session)
   })

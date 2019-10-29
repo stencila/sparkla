@@ -10,6 +10,7 @@ import {
 import Docker, { MountSettings } from 'dockerode'
 import { Session } from './Session'
 import { optionalMin } from './util'
+import { PassThrough } from 'stream';
 
 const BYTES_PER_GIB = 1024 * 1024 * 1024
 
@@ -89,11 +90,10 @@ export class DockerSession extends Session {
 
     // Create and start the container
     // See options at https://docs.docker.com/engine/api/v1.40/#operation/ContainerCreate
-    // Following comments form that documentation
     const container = (this.container = await docker.createContainer({
       Image: image,
       OpenStdin: true,
-      AttachStdin: true,
+      // Add Sparkla labels to be able to filter these easily
       Labels: {
         sparklaId: id
       },
@@ -108,6 +108,7 @@ export class DockerSession extends Session {
         Mounts: mounts
       }
     }))
+    await container.start()
 
     // Attach to the container. Use "HTTP hijacking" for
     // separate `stdin` and `stdout`
@@ -119,10 +120,12 @@ export class DockerSession extends Session {
       stderr: false
     })
 
-    await container.start()
+    // De-multiplex the stream to split stdout from stderr
+    const stdout = new PassThrough()
+    docker.modem.demuxStream(stream, stdout, process.stderr)
 
-    // @ts-ignore
-    this.client = new StreamClient(stream, stream)
+    // @ts-ignore that 'ReadWriteStream' is not assignable to parameter of type 'Writable'
+    this.client = new StreamClient(stream, stdout)
 
     return session
   }
