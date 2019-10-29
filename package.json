@@ -23,7 +23,7 @@
     "@stencila/dev-config": "1.2.2",
     "@stencila/dockta": "0.15.1",
     "@types/dockerode": "^2.5.20",
-    "@types/jest": "24.0.19",
+    "@types/jest": "24.0.20",
     "jest": "24.9.0",
     "ts-jest": "24.1.0",
     "ts-node": "8.4.1",
