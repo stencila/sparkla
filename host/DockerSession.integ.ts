@@ -1,5 +1,10 @@
 import { DockerSession } from './DockerSession'
-import { softwareSession, volumeMount } from '@stencila/schema'
+import {
+  softwareSession,
+  volumeMount,
+  codeChunk,
+  codeExpression
+} from '@stencila/schema'
 
 // Allow up to 5 minutes for this test
 jest.setTimeout(5 * 60 * 1000)
@@ -17,9 +22,8 @@ const sessionCount = async (): Promise<number> =>
   (await DockerSession.list()).length
 
 describe('begin + end', () => {
-  const instance = new DockerSession()
-
   test('defaults', async () => {
+    const instance = new DockerSession()
     const session = softwareSession()
     await instance.begin(session)
     expect(await sessionCount()).toBe(1)
@@ -28,6 +32,7 @@ describe('begin + end', () => {
   })
 
   test('volumeMount', async () => {
+    const instance = new DockerSession()
     const session = softwareSession({
       volumeMounts: [
         volumeMount('/mount/dir', {
@@ -41,6 +46,26 @@ describe('begin + end', () => {
     expect(sessions.length).toBe(1)
     const mounts = sessions[0].volumeMounts
     expect(mounts).toEqual(session.volumeMounts)
+
+    await instance.end(session)
+  })
+})
+
+describe('execute', () => {
+  test('defaults', async () => {
+    const instance = new DockerSession()
+    const session = softwareSession()
+    await instance.begin(session)
+
+    const expr = await instance.execute(
+      codeExpression('6 * 7', { programmingLanguage: 'python' })
+    )
+    expect(expr).toEqual({
+      type: 'CodeExpression',
+      programmingLanguage: 'python',
+      text: '6 * 7',
+      output: 42
+    })
 
     await instance.end(session)
   })

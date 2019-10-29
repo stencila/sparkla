@@ -10,7 +10,7 @@ import {
 import Docker, { MountSettings } from 'dockerode'
 import { Session } from './Session'
 import { optionalMin } from './util'
-import { PassThrough } from 'stream';
+import { PassThrough } from 'stream'
 
 const BYTES_PER_GIB = 1024 * 1024 * 1024
 
@@ -166,7 +166,6 @@ export class DockerSession extends Session {
     })
     const sessions = containers.map(container => {
       const { Mounts: mounts } = container
-      console.log(container)
 
       const volumeMounts = mounts.map(
         (mount): VolumeMount => {

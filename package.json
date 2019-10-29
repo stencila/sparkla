@@ -11,9 +11,9 @@
     "lint": "eslint 'host/**/*.{ts,js}' --fix",
     "format": "npx prettier --write './**/*.{js,json,md,ts,yaml}'",
     "test": "npm run test:unit && npm run test:integ",
-    "test:cover": "jest --coverage",
+    "test:cover": "jest --coverage --runInBand",
     "test:unit": "jest --testPathPattern=\\.test\\.ts$",
-    "test:integ": "jest --testPathPattern=\\.integ\\.ts$",
+    "test:integ": "jest --runInBand --testPathPattern=\\.integ\\.ts$",
     "build": "tsc",
     "serve": "node dist/cli",
     "serve:dev": "JWT_SECRET=not-a-secret ts-node-dev host/cli --debug"

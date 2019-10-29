@@ -11,7 +11,11 @@
  */
 
 import { WebSocketAddress, WebSocketClient } from '@stencila/executa'
-import { softwareEnvironment, softwareSession, codeChunk } from '@stencila/schema'
+import {
+  softwareEnvironment,
+  softwareSession,
+  codeChunk
+} from '@stencila/schema'
 import JWT from 'jsonwebtoken'
 import { DockerSession } from './DockerSession'
 import { Manager } from './Manager'
@@ -76,7 +80,7 @@ describe('Manager', () => {
    */
   test('begin and end: SoftwareSession', async () => {
     let session = await client.begin(
-      softwareSession(softwareEnvironment('stencila/sparkla-alpine'))
+      softwareSession()
     )
     expect(session).toHaveProperty('id')
     expect(session).toHaveProperty('dateStart')
@@ -91,7 +95,7 @@ describe('Manager', () => {
   test('execute: Python CodeChunk in Ubuntu environment', async () => {
     const session = await client.begin(
       softwareSession({
-        environment: softwareEnvironment('stencila/sparkla-ubuntu-midi')
+        environment: softwareEnvironment('stencila/sparkla-ubuntu')
       })
     )
     let chunk
