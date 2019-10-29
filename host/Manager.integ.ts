@@ -90,7 +90,7 @@ describe('Manager', () => {
   /**
    * Begin a session and execute some Python code in it
    */
-  test.skip('execute: Python CodeChunk in Ubuntu environment', async () => {
+  test('execute: Python CodeChunk in Ubuntu environment', async () => {
     const session = await client.begin(
       softwareSession({
         environment: softwareEnvironment('stencila/sparkla-ubuntu')
@@ -101,7 +101,8 @@ describe('Manager', () => {
     chunk = await client.execute(
       codeChunk('a = 3', {
         programmingLanguage: 'python'
-      })
+      }),
+      session
     )
     expect(chunk).toHaveProperty('outputs')
     expect(chunk.outputs).toEqual([])
@@ -109,7 +110,8 @@ describe('Manager', () => {
     chunk = await client.execute(
       codeChunk('a * 2', {
         programmingLanguage: 'python'
-      })
+      }),
+      session
     )
     expect(chunk).toHaveProperty('outputs')
     expect(chunk.outputs).toEqual([6])
