@@ -1,3 +1,11 @@
+## [0.5.1](https://github.com/stencila/sparkla/compare/v0.5.0...v0.5.1) (2019-10-29)
+
+
+### Bug Fixes
+
+* Package-lock.json out of sync ([337de2e](https://github.com/stencila/sparkla/commit/337de2e3441da8c92218c651c818f404c49da915))
+* Setting up ubuntu image to run as guest user, updated dockta ([a07ee32](https://github.com/stencila/sparkla/commit/a07ee3202c757862c318144838e045fd75a5b28a))
+
 # [0.5.0](https://github.com/stencila/sparkla/compare/v0.4.0...v0.5.0) (2019-10-29)
 
 
