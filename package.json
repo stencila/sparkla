@@ -11,8 +11,9 @@
     "lint": "eslint 'host/**/*.{ts,js}' --fix",
     "format": "npx prettier --write './**/*.{js,json,md,ts,yaml}'",
     "test": "npm run test:unit && npm run test:integ",
+    "test:cover": "jest --coverage --runInBand",
     "test:unit": "jest --testPathPattern=\\.test\\.ts$",
-    "test:integ": "jest --testPathPattern=\\.integ\\.ts$",
+    "test:integ": "jest --runInBand --testPathPattern=\\.integ\\.ts$",
     "build": "tsc",
     "serve": "node dist/cli",
     "serve:dev": "JWT_SECRET=not-a-secret ts-node-dev host/cli --debug"
@@ -21,6 +22,7 @@
   "devDependencies": {
     "@stencila/dev-config": "1.2.2",
     "@stencila/dockta": "0.15.1",
+    "@types/dockerode": "^2.5.20",
     "@types/jest": "24.0.19",
     "jest": "24.9.0",
     "ts-jest": "24.1.0",
@@ -29,9 +31,10 @@
     "typescript": "3.6.3"
   },
   "dependencies": {
-    "@stencila/executa": "^0.5.0",
+    "@stencila/executa": "^0.6.0",
     "@stencila/logga": "^1.4.0",
-    "@stencila/schema": "^0.30.1"
+    "@stencila/schema": "^0.30.5",
+    "dockerode": "^3.0.2"
   },
   "prettier": "@stencila/dev-config/prettier-config.json",
   "commitlint": {
@@ -61,7 +64,7 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "testMatch": [
-      "<rootDir>/**/*.(test|integ).[jt]s"
+      "<rootDir>/(host|guest)/*.(test|integ).[jt]s"
     ]
   },
   "husky": {

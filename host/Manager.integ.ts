@@ -11,16 +11,14 @@
  */
 
 import { WebSocketAddress, WebSocketClient } from '@stencila/executa'
-import { Manager } from './Manager'
-import { DockerSession } from './DockerSession'
 import {
+  softwareEnvironment,
   softwareSession,
-  environment,
-  codeChunk,
-  SoftwareSession,
-  CodeChunk
+  codeChunk
 } from '@stencila/schema'
 import JWT from 'jsonwebtoken'
+import { DockerSession } from './DockerSession'
+import { Manager } from './Manager'
 
 let manager: Manager
 let client: WebSocketClient
@@ -62,45 +60,62 @@ afterAll(async () => {
   if (client !== undefined) await client.stop()
 })
 
+// Allow up to 5 minutes for this test
 jest.setTimeout(5 * 60 * 1000)
 
 describe('Manager', () => {
+  /**
+   * Get the manager's manifest, and check it has
+   * the expected properties
+   */
   test('manifest', async () => {
     const manifest = await client.manifest()
     expect(manifest).toHaveProperty('addresses')
     expect(manifest).toHaveProperty('capabilities')
   })
 
-  test('begin', async () => {
-    const session = await client.begin(
-      softwareSession(environment('stencila/sparkla-alpine'))
+  /**
+   * Begin a session, check it's properties, then end it
+   * and check it really is ended using manager's
+   */
+  test('begin and end: SoftwareSession', async () => {
+    let session = await client.begin(
+      softwareSession()
     )
     expect(session).toHaveProperty('id')
-    expect(session).toHaveProperty('began')
+    expect(session).toHaveProperty('dateStart')
+
+    session = await client.end(session)
+    expect(session).toHaveProperty('dateEnd')
   })
 
-  test('execute', async () => {
-    const session = (await client.begin(
-      softwareSession(environment('stencila/sparkla-ubuntu'))
-    )) as SoftwareSession
+  /**
+   * Begin a session and execute some Python code in it
+   */
+  test('execute: Python CodeChunk in Ubuntu environment', async () => {
+    const session = await client.begin(
+      softwareSession({
+        environment: softwareEnvironment('stencila/sparkla-ubuntu')
+      })
+    )
     let chunk
 
-    chunk = (await client.execute(
+    chunk = await client.execute(
       codeChunk('a = 3', {
         programmingLanguage: 'python'
-      }),
-      session
-    )) as CodeChunk
+      })
+    )
     expect(chunk).toHaveProperty('outputs')
     expect(chunk.outputs).toEqual([])
 
-    chunk = (await client.execute(
+    chunk = await client.execute(
       codeChunk('a * 2', {
         programmingLanguage: 'python'
-      }),
-      session
-    )) as CodeChunk
+      })
+    )
     expect(chunk).toHaveProperty('outputs')
     expect(chunk.outputs).toEqual([6])
+
+    await client.end(session)
   })
 })

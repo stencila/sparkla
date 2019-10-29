@@ -32,5 +32,5 @@ RUN python3 -m stencila.schema register
 RUN npm install --global @stencila/schema @stencila/logga minimist
 RUN node /usr/lib/node_modules/@stencila/schema/dist/interpreter.js register
 
-# Run Execta by default when in a Docker container
+# Run Executa by default when in a Docker container
 CMD node /usr/bin/executa serve --stdio
