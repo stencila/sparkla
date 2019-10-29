@@ -95,14 +95,16 @@ describe('Manager', () => {
    * Begin a session and execute some Python code in it
    */
   test('execute: Python CodeChunk in Ubuntu environment', async () => {
-    const session = (await client.begin(
-      softwareSession(softwareEnvironment('stencila/sparkla-ubuntu'))
-    )) as SoftwareSession
+    const session = await client.begin(
+      softwareSession({
+        environment: softwareEnvironment('stencila/sparkla-ubuntu')
+      })
+    )
     let chunk
 
     // TODO: Reinstate when `StreamClient` is working with dockerode
 
-    /*chunk = (await client.execute(
+    /* chunk = (await client.execute(
       codeChunk('a = 3', {
         programmingLanguage: 'python'
       })
@@ -119,6 +121,6 @@ describe('Manager', () => {
     expect(chunk.outputs).toEqual([6])
 
 
-    await client.end(session)*/
+    await client.end(session) */
   })
 })

@@ -1,10 +1,12 @@
-import { SoftwareSession, Node } from '@stencila/schema'
-import Docker, { ContainerCreateOptions } from 'dockerode'
-import { Session } from './Session'
-// TODO: change import when this is exported from executa
-import { StreamClient } from '@stencila/executa/dist/lib/stream/StreamClient'
+import { StreamClient } from '@stencila/executa';
+import { getLogger } from '@stencila/logga';
+import { Node, SoftwareSession } from '@stencila/schema';
+import Docker, { ContainerCreateOptions } from 'dockerode';
+import { Session } from './Session';
 
 const CPU_PERIOD = 1000
+
+const log = getLogger('sparkla:docker')
 
 export class DockerSession extends Session {
   /**
@@ -24,7 +26,14 @@ export class DockerSession extends Session {
    * @param session
    */
   async begin(session: SoftwareSession): Promise<SoftwareSession> {
-    const image = session.environment.name
+    let image = 'stencila/sparkla-ubuntu'
+    if (session.environment !== undefined) {
+      image = session.environment.name
+    } else {
+      // Normally, the `environment` will be requested, or defined in `Manager.sessionDefault`.
+      // So, if it has not been set yet, issue a warning
+      log.warn(`Session environment was not set so defaulting to: ${image}`)
+    }
 
     // Create and start the container
     // See options at https://docs.docker.com/engine/api/v1.40/#operation/ContainerCreate
@@ -84,8 +93,7 @@ export class DockerSession extends Session {
 
     await container.start()
 
-    // TODO: Remove when StreamClient is no longer abstract.
-    // @ts-ignore that StreamClient is abstract
+    // @ts-ignore
     this.client = new StreamClient(stream, stream)
 
     return session
@@ -105,8 +113,7 @@ export class DockerSession extends Session {
       await container.remove()
     }
     if (client !== undefined) {
-      // TODO: Reinstate this when stop is a method of StreamClient
-      // client.stop()
+      await client.stop()
     }
     return node
   }
