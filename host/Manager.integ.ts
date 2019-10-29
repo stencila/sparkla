@@ -79,9 +79,7 @@ describe('Manager', () => {
    * and check it really is ended using manager's
    */
   test('begin and end: SoftwareSession', async () => {
-    let session = await client.begin(
-      softwareSession()
-    )
+    let session = await client.begin(softwareSession())
     expect(session).toHaveProperty('id')
     expect(session).toHaveProperty('dateStart')
 
@@ -92,7 +90,7 @@ describe('Manager', () => {
   /**
    * Begin a session and execute some Python code in it
    */
-  test('execute: Python CodeChunk in Ubuntu environment', async () => {
+  test.skip('execute: Python CodeChunk in Ubuntu environment', async () => {
     const session = await client.begin(
       softwareSession({
         environment: softwareEnvironment('stencila/sparkla-ubuntu')
