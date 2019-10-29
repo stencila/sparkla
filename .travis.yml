@@ -21,11 +21,13 @@ before_cache:
 
 script:
   - npm run lint
-  - npm run test:unit -- --forceExit
   - npm run build
   - make rootfs-dockers
-  - npm run test:integ -- --forceExit
+  - npm run test:cover -- --forceExit
 
+after_success:
+  # Upload test coverage to codecov.io
+  - bash <(curl -s https://codecov.io/bash)
 
 deploy:
   # Do a semantic release
@@ -34,6 +36,7 @@ deploy:
     script: npx semantic-release
     on:
       branch: master
+
   # Push Docker images
   - provider: script
     script: make rootfs-push

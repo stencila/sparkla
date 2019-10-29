@@ -11,6 +11,7 @@
     "lint": "eslint 'host/**/*.{ts,js}' --fix",
     "format": "npx prettier --write './**/*.{js,json,md,ts,yaml}'",
     "test": "npm run test:unit && npm run test:integ",
+    "test:cover": "jest --coverage",
     "test:unit": "jest --testPathPattern=\\.test\\.ts$",
     "test:integ": "jest --testPathPattern=\\.integ\\.ts$",
     "build": "tsc",
@@ -63,7 +64,7 @@
     "preset": "ts-jest",
     "testEnvironment": "node",
     "testMatch": [
-      "<rootDir>/**/*.(test|integ).[jt]s"
+      "<rootDir>/(host|guest)/*.(test|integ).[jt]s"
     ]
   },
   "husky": {
