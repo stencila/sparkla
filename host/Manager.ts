@@ -1,7 +1,7 @@
 import {
   BaseExecutor,
-  TcpClient,
-  VsockFirecrackerClient,
+  TcpServerClient,
+  User,
   WebSocketAddress,
   WebSocketServer
 } from '@stencila/executa'
@@ -18,11 +18,41 @@ import crypto from 'crypto'
 import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { Session } from './Session'
+import { Capabilities } from '@stencila/executa/dist/lib/base/Executor'
 
 const log = getLogger('sparkla:manager')
 
 export interface SessionType {
   new (): FirecrackerSession | DockerSession
+}
+
+/**
+ * A WebSocket server class which notifies the `Manager`
+ * when a client disconnects so that sessions can be
+ * ended is necessary.
+ */
+export class ManagerServer extends WebSocketServer {
+  constructor(host = '127.0.0.1', port = 9000) {
+    super(new WebSocketAddress({ host, port }))
+  }
+
+  /**
+   * Handler for client disconnection.
+   *
+   * Override to end all sessions for the client.
+   */
+  async onDisconnected(client: TcpServerClient) {
+    // Call `WebSockerServer.onDisconnected` to de-register the client
+    // as normal
+    super.onDisconnected(client)
+
+    // Tell the `Manager` to end all sessions that are linked to
+    // the client
+    const manager = this.executor as Manager
+    if (manager !== undefined) {
+      await manager.endAllClient(client.id)
+    }
+  }
 }
 
 export class Manager extends BaseExecutor {
@@ -49,9 +79,21 @@ export class Manager extends BaseExecutor {
   })
 
   /**
-   * Sessions managed by this manager.
+   * Session instances mapped to session node id.
+   *
+   * This allows for fast delegation to the session instance
+   * in the `execute()` and `end()` methods.
    */
   private sessions: { [key: string]: Session } = {}
+
+  /**
+   * Session instances for each client id.
+   *
+   * This allows tracking of the number of sessions per client
+   * and for all session instances associated with a client to be ended
+   * when the client disconnects.
+   */
+  private clients: { [key: string]: Session[] } = {}
 
   constructor(sessionType: SessionType, host = '127.0.0.1', port = 9000) {
     super(
@@ -59,14 +101,33 @@ export class Manager extends BaseExecutor {
       // class keeps track of `Session`s which it delegate to based on
       // the `session` property of nodes.
       [],
-      // Client class used depend upon the machine class
-      [sessionType === FirecrackerSession ? VsockFirecrackerClient : TcpClient],
+      // No peers at present, so no need for client classe
+      [],
       // Websocket server for receiving requests
       // from browser based clients (also provides HTTP endpoints)
-      [new WebSocketServer(new WebSocketAddress({ host, port }))]
+      [new ManagerServer(host, port)]
     )
 
     this.SessionType = sessionType
+  }
+
+  /**
+   * Declaration of capabilities.
+   *
+   * At present, just declare that capable of all methods
+   * since actual capabilities will be determined by
+   * sessions delegated to.
+   */
+  capabilities(): Promise<Capabilities> {
+    return Promise.resolve({
+      decode: true,
+      encode: true,
+      compile: true,
+      build: true,
+      execute: true,
+      begin: true,
+      end: true
+    })
   }
 
   async execute<NodeType extends Node>(
@@ -103,7 +164,7 @@ export class Manager extends BaseExecutor {
 
   async begin<NodeType extends Node>(
     node: NodeType,
-    limits?: SoftwareSession
+    user: User = {}
   ): Promise<NodeType> {
     if (isA('SoftwareSession', node)) {
       if (node.dateStart !== undefined) {
@@ -118,41 +179,106 @@ export class Manager extends BaseExecutor {
         // default fills in the missing properties of the requested)
         const sessionRequested = { ...this.sessionDefault, ...node }
 
-        // The `limits` session overrides the properties of the
-        // requested session. Usually `cpuLimit` etc are not in a request
-        // but in case they are we override them here.
-        const sessionPermitted = { ...sessionRequested, ...limits }
+        // The `user.session` overrides the properties of the
+        // requested session. Usually `cpuLimit` etc are not in a request,
+        // but in case they are, we override them here.
+        const sessionPermitted = { ...sessionRequested, ...user.session }
 
         // Assign a unique, difficult to guess, identifier
         // that allows routing back to the `Session` instance
         // in the execute() method
-        const id = crypto.randomBytes(32).toString('hex')
-        this.sessions[id] = instance
+        const sessionId = crypto.randomBytes(32).toString('hex')
+        this.sessions[sessionId] = instance
+
+        // Register the session instance against the client so that it
+        // can be ended when the client disconnects, or the number
+        // of session per client can be limited
+        const clientId = user.client !== undefined ? user.client.id : undefined
+        if (clientId !== undefined) {
+          if (this.clients[clientId] === undefined)
+            this.clients[clientId] = [instance]
+          else this.clients[clientId].push(instance)
+        }
 
         // Actually start the session and return the updated
         // `SoftwareSession` node.
-        const begunSession = await instance.begin({ ...sessionPermitted, id })
+        const begunSession = await instance.begin({
+          ...sessionPermitted,
+          id: sessionId
+        })
         const dateStart = date(new Date().toISOString())
-        return softwareSession({ ...begunSession, id, dateStart }) as NodeType
+        return softwareSession({ ...begunSession, dateStart }) as NodeType
       }
     }
     return node
   }
 
-  async end<NodeType extends Node>(node: NodeType): Promise<NodeType> {
+  async end<NodeType extends Node>(
+    node: NodeType,
+    user: User = {}
+  ): Promise<NodeType> {
     if (isA('SoftwareSession', node)) {
-      const { id } = node
-      if (id === undefined) return node
+      const { id: sessionId } = node
+      if (sessionId === undefined) return node
 
-      const instance = this.sessions[id]
+      const instance = this.sessions[sessionId]
       if (instance === undefined) return node
 
       const endedSession = await instance.end(node)
       const dateEnd = date(new Date().toISOString())
-      delete this.sessions[id]
+      delete this.sessions[sessionId]
+
+      // De-register the session instance for the client
+      const clientId = user.client !== undefined ? user.client.id : undefined
+      if (clientId !== undefined) {
+        let instances = this.clients[clientId]
+        if (instances !== undefined) {
+          instances = instances.splice(instances.indexOf(instance), 1)
+        }
+        if (instances.length > 0) {
+          this.clients[clientId] = instances
+        } else {
+          delete this.clients[clientId]
+        }
+      }
 
       return softwareSession({ ...endedSession, dateEnd }) as NodeType
     }
     return node
+  }
+
+  /**
+   * End all sessions for a client.
+   *
+   * This method is normally called when a client disconnects.
+   * As such it does not call `this.end()` since there is no need
+   * to return an updated `SoftwareSession` node. Rather, it just ends
+   * the instance directly.
+   *
+   * In the future, there may be more than one client using a
+   * session, in which case this method will need to check
+   * for that before ending.
+   *
+   * @param clientId The id of the client
+   */
+  async endAllClient(clientId: string): Promise<void> {
+    const instances = this.clients[clientId]
+    if (instances !== undefined) {
+      await Promise.all(instances.map(instance => instance.end()))
+      delete this.clients[clientId]
+    }
+  }
+
+  /**
+   * End all sessions.
+   *
+   * This method should be avoided but may be useful for
+   * cleanup when forcing shutdown of a manager.
+   */
+  endAll(): Promise<void> {
+    if (this.SessionType === DockerSession) return DockerSession.endAll()
+    if (this.SessionType === FirecrackerSession)
+      return FirecrackerSession.endAll()
+    return Promise.resolve()
   }
 }

@@ -5,5 +5,5 @@ export abstract class Session {
 
   abstract execute(node: Node): Promise<Node>
 
-  abstract end(node: SoftwareSession): Promise<SoftwareSession>
+  abstract end(node?: SoftwareSession): Promise<SoftwareSession>
 }

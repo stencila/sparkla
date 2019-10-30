@@ -23,10 +23,10 @@ import { Manager } from './Manager'
 
 let manager: Manager
 let client: WebSocketClient
+let address: WebSocketAddress
 
 beforeAll(async () => {
   const url = process.env.MANAGER_URL
-  let address: WebSocketAddress
   if (url === undefined) {
     // Need to ensure a JWT secret is set
     if (process.env.JWT_SECRET === undefined) {
@@ -76,16 +76,31 @@ describe('Manager', () => {
   })
 
   /**
-   * Begin a session, check it's properties, then end it
-   * and check it really is ended using manager's
+   * Begin a session, check it's properties, then
+   * explicity end it, before dinally disconnecting
    */
-  test('begin and end: SoftwareSession', async () => {
+  test('begin, end, disconnect', async () => {
+    const client = new WebSocketClient(address)
     let session = await client.begin(softwareSession())
     expect(session).toHaveProperty('id')
     expect(session).toHaveProperty('dateStart')
 
     session = await client.end(session)
     expect(session).toHaveProperty('dateEnd')
+
+    await client.stop()
+  })
+
+  /**
+   * Begin a session and then disconnect without
+   * explicitly ending it.
+   */
+  test('begin and disconnect', async () => {
+    const client = new WebSocketClient(address)
+    const session = await client.begin(softwareSession())
+    expect(session).toHaveProperty('dateStart')
+
+    await client.stop()
   })
 
   /**
