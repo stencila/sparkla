@@ -10,7 +10,7 @@ push:
 	docker push stencila/sparkla-ubuntu
 
 pull:
-	docker push stencila/sparkla-ubuntu
+	docker pull stencila/sparkla-ubuntu
 
 clean:
 	rm -rf rootfs.*

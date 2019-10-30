@@ -13,4 +13,4 @@ push:
 	docker push $(TAG)
 
 pull:
-	docker push $(TAG)
+	docker pull $(TAG)
