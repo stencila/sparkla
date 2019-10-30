@@ -73,7 +73,7 @@ export class Manager extends BaseExecutor {
     node: NodeType,
     session?: SoftwareSession
   ): Promise<NodeType> {
-    if (isA('CodeChunk', node)) {
+    if (isA('CodeChunk', node) || isA('CodeExpression', node)) {
       // Use the default session if non is provided
       if (session === undefined) session = this.sessionDefault
 

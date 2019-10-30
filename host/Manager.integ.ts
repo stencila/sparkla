@@ -12,9 +12,10 @@
 
 import { WebSocketAddress, WebSocketClient } from '@stencila/executa'
 import {
+  codeChunk,
+  codeExpression,
   softwareEnvironment,
-  softwareSession,
-  codeChunk
+  softwareSession
 } from '@stencila/schema'
 import JWT from 'jsonwebtoken'
 import { DockerSession } from './DockerSession'
@@ -88,9 +89,22 @@ describe('Manager', () => {
   })
 
   /**
+   * Execute code expression with an implicitly created session
+   */
+  test('execute: Python CodeExpression with implicit session', async () => {
+    const expr = await client.execute(
+      codeExpression('7 * 6 + 32', {
+        programmingLanguage: 'python'
+      })
+    )
+    expect(expr).toHaveProperty('output')
+    expect(expr.output).toEqual(74)
+  })
+
+  /**
    * Begin a session and execute some Python code in it
    */
-  test('execute: Python CodeChunk in Ubuntu environment', async () => {
+  test('execute: Python CodeChunk within a session', async () => {
     const session = await client.begin(
       softwareSession({
         environment: softwareEnvironment('stencila/sparkla-ubuntu')
