@@ -9,13 +9,13 @@ import {
 // Allow up to 5 minutes for this test
 jest.setTimeout(5 * 60 * 1000)
 
-// Stop all sessions before and after tests
+// End all sessions before and after tests
 // just in case they were not stopped by calling end()
 beforeAll(async () => {
-  await DockerSession.stop()
+  await DockerSession.endAll()
 })
 afterAll(async () => {
-  await DockerSession.stop()
+  await DockerSession.endAll()
 })
 
 const sessionCount = async (): Promise<number> =>

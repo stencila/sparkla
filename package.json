@@ -31,7 +31,7 @@
     "typescript": "3.6.4"
   },
   "dependencies": {
-    "@stencila/executa": "^0.6.0",
+    "@stencila/executa": "^0.7.0",
     "@stencila/logga": "^1.4.0",
     "@stencila/schema": "^0.30.5",
     "dockerode": "^3.0.2"

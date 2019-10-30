@@ -185,7 +185,7 @@ export class DockerSession extends Session {
   /**
    * End all sessions being managed by this class.
    */
-  static async stop(): Promise<void> {
+  static async endAll(): Promise<void> {
     const containers = await docker.listContainers({
       all: true,
       filters: {

@@ -211,6 +211,14 @@ export class FirecrackerSession extends Session {
     return Promise.resolve(node)
   }
 
+  /**
+   * End all sessions
+   */
+  static endAll(): Promise<void> {
+    // TODO:
+    return Promise.resolve()
+  }
+
   /* eslint-enable @typescript-eslint/camelcase */
 
   private fcRequest(
