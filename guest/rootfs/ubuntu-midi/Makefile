@@ -11,3 +11,6 @@ docker: DESCRIPTION package.json requirements.txt
 
 push:
 	docker push $(TAG)
+
+pull:
+	docker push $(TAG)

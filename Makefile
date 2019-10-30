@@ -19,15 +19,17 @@ build:
 	npm run build
 
 rootfs-dockers:
-	make -C guest/rootfs/alpine docker
 	make -C guest/rootfs/ubuntu docker
 	make -C guest/rootfs/ubuntu-midi docker
 
 rootfs-push:
 	@echo "$$DOCKER_PASSWORD" | docker login -u "$$DOCKER_USERNAME" --password-stdin
-	make -C guest/rootfs/alpine push
 	make -C guest/rootfs/ubuntu push
 	make -C guest/rootfs/ubuntu-midi push
+
+rootfs-pull:
+	make -C guest/rootfs/ubuntu pull
+	make -C guest/rootfs/ubuntu-midi pull
 
 docs:
 	npm run docs
