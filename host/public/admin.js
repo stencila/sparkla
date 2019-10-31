@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 const { HttpClient } = executa
 
 /**
@@ -106,8 +108,8 @@ document.body.appendChild(beginElem)
  */
 async function endSession(id) {
   const session = await executor.end({
-      type: 'SoftwareSession',
-      id
+    type: 'SoftwareSession',
+    id
   })
   console.log('Ended', session)
   listSessions()
@@ -143,9 +145,9 @@ detailsElem.appendChild(codeChunkComp)
  * @param id The id of the session
  */
 function selectSession(id) {
-  detailsElem.querySelector(".id").innerText = id
+  detailsElem.querySelector('.id').innerText = id
   // Attach the session to the web component
-  codeChunkComp.executeHandler = (codeChunk) => {
+  codeChunkComp.executeHandler = codeChunk => {
     return executor.execute(codeChunk, {
       type: 'SoftwareSession',
       id,

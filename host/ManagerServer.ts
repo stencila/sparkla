@@ -1,8 +1,12 @@
-import { TcpServerClient, WebSocketAddress, WebSocketServer } from '@stencila/executa';
-import { FastifyReply, FastifyRequest } from 'fastify';
-import fastifyStatic from 'fastify-static';
-import path from 'path';
-import { Manager } from './Manager';
+import {
+  TcpServerClient,
+  WebSocketAddress,
+  WebSocketServer
+} from '@stencila/executa'
+import { FastifyReply, FastifyRequest } from 'fastify'
+import fastifyStatic from 'fastify-static'
+import path from 'path'
+import { Manager } from './Manager'
 
 /**
  * A WebSocket server for `Manager`
@@ -21,13 +25,17 @@ export class ManagerServer extends WebSocketServer {
     })
 
     // Add admin page endpoint
-    this.app.get('/admin', (request: FastifyRequest, reply: FastifyReply<any>): void =>  {
-      if (request.headers['accept'].includes('application/json')) {
-        const { sessions } = this.executor as Manager
-        reply.send(sessions)
+    this.app.get(
+      '/admin',
+      (request: FastifyRequest, reply: FastifyReply<any>): void => {
+        // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
+        if (request.headers.accept.includes('application/json')) {
+          const { sessions } = this.executor as Manager
+          reply.send(sessions)
+        }
+        reply.sendFile('admin.html')
       }
-      reply.sendFile('admin.html')
-    })
+    )
   }
 
   /**
@@ -35,7 +43,7 @@ export class ManagerServer extends WebSocketServer {
    *
    * Override to end all sessions for the client.
    */
-  async onDisconnected(client: TcpServerClient) {
+  async onDisconnected(client: TcpServerClient): Promise<void> {
     // Call `WebSockerServer.onDisconnected` to de-register the client
     // as normal
     super.onDisconnected(client)

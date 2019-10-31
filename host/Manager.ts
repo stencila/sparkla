@@ -162,7 +162,7 @@ export class Manager extends BaseExecutor {
       }
 
       // Get the session `instance` and ask it to execute the node
-      const { instance = undefined } = this.sessions[id] || {}
+      const { instance } = this.sessions[id]
       if (instance === undefined) {
         // This should never happen; if it does there is a bug in begin() or end()
         log.error(`No instance with id; already deleted, mis-routed?: ${id}`)
@@ -244,7 +244,7 @@ export class Manager extends BaseExecutor {
       const { id: sessionId } = node
       if (sessionId === undefined) return node
 
-      const { instance = undefined } = this.sessions[sessionId] || {}
+      const { instance } = this.sessions[sessionId]
       if (instance === undefined) return node
 
       const endedSession = await instance.end(node)
