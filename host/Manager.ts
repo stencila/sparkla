@@ -19,8 +19,31 @@ import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { Session } from './Session'
 import { Capabilities } from '@stencila/executa/dist/lib/base/Executor'
+import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
 
 const log = getLogger('sparkla:manager')
+const statusTagKey = { name: 'status' }
+
+const sessionsMeasure = globalStats.createMeasureInt64(
+  'sparkla/sessions_count',
+  MeasureUnit.UNIT,
+  'The number of sessions running'
+)
+
+const sessionsCountView = globalStats.createView(
+  'sparkla/sessions_count',
+  sessionsMeasure,
+  AggregationType.COUNT,
+  [statusTagKey],
+  'The number of sessions running'
+)
+globalStats.registerView(sessionsCountView)
+
+function recordSessionsCount(sessions: object) {
+  globalStats.record([
+    { measure: sessionsMeasure, value: Object.keys(sessions).length }
+  ])
+}
 
 export interface SessionType {
   new (): FirecrackerSession | DockerSession
@@ -171,7 +194,7 @@ export class Manager extends BaseExecutor {
         // Session has already begun, so just return the session unaltered
         return node
       } else {
-        // Session needs to started...
+        // Session needs to be started...
         const instance = new this.SessionType()
 
         // The requested session overrides the properties of the
@@ -207,6 +230,7 @@ export class Manager extends BaseExecutor {
           id: sessionId
         })
         const dateStart = date(new Date().toISOString())
+        recordSessionsCount(this.sessions)
         return softwareSession({ ...begunSession, dateStart }) as NodeType
       }
     }
@@ -241,7 +265,7 @@ export class Manager extends BaseExecutor {
           delete this.clients[clientId]
         }
       }
-
+      recordSessionsCount(this.sessions)
       return softwareSession({ ...endedSession, dateEnd }) as NodeType
     }
     return node

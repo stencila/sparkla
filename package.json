@@ -16,7 +16,7 @@
     "test:integ": "jest --runInBand --testPathPattern=\\.integ\\.ts$",
     "build": "tsc",
     "serve": "node dist/cli",
-    "serve:dev": "JWT_SECRET=not-a-secret ts-node-dev host/cli --debug"
+    "serve:dev": "JWT_SECRET=not-a-secret ts-node-dev host/cli --debug --prometheus --docker"
   },
   "license": "Apache-2.0",
   "devDependencies": {
@@ -31,6 +31,8 @@
     "typescript": "3.6.4"
   },
   "dependencies": {
+    "@opencensus/core": "0.0.18",
+    "@opencensus/exporter-prometheus": "0.0.18",
     "@stencila/executa": "^0.7.0",
     "@stencila/logga": "^1.4.0",
     "@stencila/schema": "^0.30.5",
