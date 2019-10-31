@@ -1,10 +1,4 @@
-import {
-  BaseExecutor,
-  TcpServerClient,
-  User,
-  WebSocketAddress,
-  WebSocketServer
-} from '@stencila/executa'
+import { BaseExecutor, User } from '@stencila/executa'
 import { getLogger } from '@stencila/logga'
 import {
   date,
@@ -21,6 +15,7 @@ import { Session } from './Session'
 import { Capabilities } from '@stencila/executa/dist/lib/base/Executor'
 import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
 import { performance } from 'perf_hooks'
+import { ManagerServer } from './ManagerServer'
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -65,33 +60,10 @@ export interface SessionType {
   new (): FirecrackerSession | DockerSession
 }
 
-/**
- * A WebSocket server class which notifies the `Manager`
- * when a client disconnects so that sessions can be
- * ended is necessary.
- */
-export class ManagerServer extends WebSocketServer {
-  constructor(host = '127.0.0.1', port = 9000) {
-    super(new WebSocketAddress({ host, port }))
-  }
-
-  /**
-   * Handler for client disconnection.
-   *
-   * Override to end all sessions for the client.
-   */
-  async onDisconnected(client: TcpServerClient): Promise<void> {
-    // Call `WebSockerServer.onDisconnected` to de-register the client
-    // as normal
-    super.onDisconnected(client)
-
-    // Tell the `Manager` to end all sessions that are linked to
-    // the client
-    const manager = this.executor as Manager
-    if (manager !== undefined) {
-      await manager.endAllClient(client.id)
-    }
-  }
+export interface SessionInfo {
+  node: SoftwareSession
+  instance: Session
+  user: User
 }
 
 export class Manager extends BaseExecutor {
@@ -123,7 +95,7 @@ export class Manager extends BaseExecutor {
    * This allows for fast delegation to the session instance
    * in the `execute()` and `end()` methods.
    */
-  private sessions: { [key: string]: Session } = {}
+  public readonly sessions: { [key: string]: SessionInfo } = {}
 
   /**
    * Session instances for each client id.
@@ -190,7 +162,7 @@ export class Manager extends BaseExecutor {
       }
 
       // Get the session `instance` and ask it to execute the node
-      const instance = this.sessions[id]
+      const { instance = undefined } = this.sessions[id] || {}
       if (instance === undefined) {
         // This should never happen; if it does there is a bug in begin() or end()
         log.error(`No instance with id; already deleted, mis-routed?: ${id}`)
@@ -238,7 +210,7 @@ export class Manager extends BaseExecutor {
         // that allows routing back to the `Session` instance
         // in the execute() method
         const sessionId = crypto.randomBytes(32).toString('hex')
-        this.sessions[sessionId] = instance
+        this.sessions[sessionId] = { node, instance, user }
 
         // Register the session instance against the client so that it
         // can be ended when the client disconnects, or the number
@@ -272,7 +244,7 @@ export class Manager extends BaseExecutor {
       const { id: sessionId } = node
       if (sessionId === undefined) return node
 
-      const instance = this.sessions[sessionId]
+      const { instance = undefined } = this.sessions[sessionId] || {}
       if (instance === undefined) return node
 
       const endedSession = await instance.end(node)
@@ -285,11 +257,11 @@ export class Manager extends BaseExecutor {
         let instances = this.clients[clientId]
         if (instances !== undefined) {
           instances = instances.splice(instances.indexOf(instance), 1)
-        }
-        if (instances.length > 0) {
-          this.clients[clientId] = instances
-        } else {
-          delete this.clients[clientId]
+          if (instances.length > 0) {
+            this.clients[clientId] = instances
+          } else {
+            delete this.clients[clientId]
+          }
         }
       }
       recordSessionsCount(this.sessions)
