@@ -21,6 +21,7 @@ import { FirecrackerSession } from './FirecrackerSession'
 import { DockerSession } from './DockerSession'
 import { PrometheusStatsExporter } from '@opencensus/exporter-prometheus'
 import { globalStats } from '@opencensus/core'
+import { SystemStats } from './SystemStats'
 
 const log = getLogger('sparkla:cli')
 
@@ -65,6 +66,10 @@ if (prometheusExport) {
   })
   globalStats.registerExporter(exporter)
 }
+
+const ss = new SystemStats()
+ss.setup()
+
 // Create and start manager using specified session class
 const manager = new Manager(sessionType, host, port)
 manager.start().catch(error => {

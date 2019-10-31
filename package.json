@@ -36,7 +36,8 @@
     "@stencila/executa": "^0.7.0",
     "@stencila/logga": "^1.4.0",
     "@stencila/schema": "^0.30.5",
-    "dockerode": "^3.0.2"
+    "dockerode": "^3.0.2",
+    "node-os-utils": "^1.1.0"
   },
   "prettier": "@stencila/dev-config/prettier-config.json",
   "commitlint": {
