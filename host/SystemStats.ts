@@ -1,6 +1,9 @@
-const osu = require('node-os-utils')
-const POLL_INTERVAL_SECONDS = 60 * 1000
 import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
+import osu from 'node-os-utils'
+import { getLogger } from '@stencila/logga'
+const POLL_INTERVAL_SECONDS = 60 * 1000
+
+const log = getLogger('sparkla:systemStats')
 
 const statusTagKey = { name: 'status' }
 
@@ -50,21 +53,37 @@ const cpuUsagePercentView = globalStats.createView(
 globalStats.registerView(cpuUsagePercentView)
 
 export class SystemStats {
-  public setup() {
+  public setup(): void {
     SystemStats.recordStats()
-    setInterval(SystemStats.recordStats, POLL_INTERVAL_SECONDS)
+    setInterval(() => {
+      SystemStats.recordStats()
+    }, POLL_INTERVAL_SECONDS)
   }
 
-  public static async recordStats() {
-    const memInfo = await osu.mem.info()
-    const cpuUsage = await osu.cpu.usage()
-    globalStats.record([
-      { measure: freeMemoryMeasure, value: memInfo.freeMemMb * 1024 },
-      {
-        measure: usedPercentMemoryMeasure,
-        value: 100 - memInfo.freeMemPercentage
-      },
-      { measure: cpuUsagePercentMeasure, value: cpuUsage }
-    ])
+  public static recordStats(): void {
+    osu.mem
+      .info()
+      .then(memInfo => {
+        globalStats.record([
+          { measure: freeMemoryMeasure, value: memInfo.freeMemMb * 1024 },
+          {
+            measure: usedPercentMemoryMeasure,
+            value: 100 - memInfo.freeMemPercentage
+          }
+        ])
+      })
+      .catch(error => {
+        log.error(error)
+      })
+    osu.cpu
+      .usage()
+      .then(cpuUsage => {
+        globalStats.record([
+          { measure: cpuUsagePercentMeasure, value: cpuUsage }
+        ])
+      })
+      .catch(error => {
+        log.error(error)
+      })
   }
 }

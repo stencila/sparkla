@@ -55,7 +55,7 @@ const executionDurationView = globalStats.createView(
 )
 globalStats.registerView(executionDurationView)
 
-function recordSessionsCount(sessions: object) {
+function recordSessionsCount(sessions: object): void {
   globalStats.record([
     { measure: sessionsMeasure, value: Object.keys(sessions).length }
   ])
@@ -80,7 +80,7 @@ export class ManagerServer extends WebSocketServer {
    *
    * Override to end all sessions for the client.
    */
-  async onDisconnected(client: TcpServerClient) {
+  async onDisconnected(client: TcpServerClient): Promise<void> {
     // Call `WebSockerServer.onDisconnected` to de-register the client
     // as normal
     super.onDisconnected(client)

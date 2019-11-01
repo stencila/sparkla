@@ -30,7 +30,7 @@ let debug = false
 let sessionType: SessionType = FirecrackerSession
 let host: string | undefined
 let port: number | undefined
-let prometheusExport: boolean = false
+let prometheusExport = false
 for (let index = 2; index < process.argv.length; index++) {
   const arg = process.argv[index]
   if (arg === '--debug') debug = true
