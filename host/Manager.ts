@@ -20,6 +20,7 @@ import { FirecrackerSession } from './FirecrackerSession'
 import { Session } from './Session'
 import { Capabilities } from '@stencila/executa/dist/lib/base/Executor'
 import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
+import { performance } from 'perf_hooks'
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -31,13 +32,28 @@ const sessionsMeasure = globalStats.createMeasureInt64(
 )
 
 const sessionsCountView = globalStats.createView(
-  'sparkla/sessions_count',
+  'sparkla/view_sessions_count',
   sessionsMeasure,
   AggregationType.COUNT,
   [statusTagKey],
   'The number of sessions running'
 )
 globalStats.registerView(sessionsCountView)
+
+const executionDurationMeasure = globalStats.createMeasureDouble(
+  'sparkla/session_execution_duration',
+  MeasureUnit.MS,
+  'The time taken to execute a node'
+)
+
+const executionDurationView = globalStats.createView(
+  'sparkla/view_session_execution_duration',
+  executionDurationMeasure,
+  AggregationType.LAST_VALUE,
+  [statusTagKey],
+  'The time taken to execute a node'
+)
+globalStats.registerView(executionDurationView)
 
 function recordSessionsCount(sessions: object) {
   globalStats.record([
@@ -180,7 +196,18 @@ export class Manager extends BaseExecutor {
         log.error(`No instance with id; already deleted, mis-routed?: ${id}`)
         return node
       }
-      return instance.execute(node) as Promise<NodeType>
+      const executeBefore = performance.now()
+
+      const processedNode = (await instance.execute(node)) as NodeType
+
+      globalStats.record([
+        {
+          measure: executionDurationMeasure,
+          value: performance.now() - executeBefore
+        }
+      ])
+
+      return processedNode
     }
     return node
   }

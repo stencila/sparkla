@@ -16,7 +16,7 @@
     "test:integ": "jest --runInBand --testPathPattern=\\.integ\\.ts$",
     "build": "tsc",
     "serve": "node dist/cli",
-    "serve:dev": "JWT_SECRET=not-a-secret ts-node-dev host/cli --debug --prometheus --docker"
+    "serve:dev": "JWT_SECRET=not-a-secret ts-node-dev host/cli --debug --docker"
   },
   "license": "Apache-2.0",
   "devDependencies": {

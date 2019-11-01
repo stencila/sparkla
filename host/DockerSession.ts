@@ -7,10 +7,44 @@ import {
   VolumeMount,
   volumeMount
 } from '@stencila/schema'
-import Docker, { MountSettings } from 'dockerode'
+import Docker, { Container, MountSettings } from 'dockerode'
 import { Session } from './Session'
 import { optionalMin } from './util'
 import { PassThrough } from 'stream'
+import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
+import { performance } from 'perf_hooks'
+
+const statisticsTagKey = { name: 'statistics' }
+
+const dockerSessionStartDurationMeasure = globalStats.createMeasureDouble(
+  'sparkla/docker_session_start_duration',
+  MeasureUnit.MS,
+  'The time taken to start a Docker session'
+)
+
+const dockerSessionStartDurationView = globalStats.createView(
+  'sparkla/view_docker_session_start_duration',
+  dockerSessionStartDurationMeasure,
+  AggregationType.LAST_VALUE,
+  [statisticsTagKey],
+  'The time taken to start a Docker session'
+)
+globalStats.registerView(dockerSessionStartDurationView)
+
+const dockerSessionStopDurationMeasure = globalStats.createMeasureDouble(
+  'sparkla/docker_session_stop_duration',
+  MeasureUnit.MS,
+  'The time taken to stop a Docker session'
+)
+
+const dockerSessionStopDurationView = globalStats.createView(
+  'sparkla/view_docker_session_stop_duration',
+  dockerSessionStopDurationMeasure,
+  AggregationType.LAST_VALUE,
+  [statisticsTagKey],
+  'The time taken to stop a Docker session'
+)
+globalStats.registerView(dockerSessionStopDurationView)
 
 const BYTES_PER_GIB = 1024 * 1024 * 1024
 
@@ -108,7 +142,17 @@ export class DockerSession extends Session {
         Mounts: mounts
       }
     }))
+
+    const sessionStartBefore = performance.now()
+
     await container.start()
+
+    globalStats.record([
+      {
+        measure: dockerSessionStartDurationMeasure,
+        value: performance.now() - sessionStartBefore
+      }
+    ])
 
     // Attach to the container. Use "HTTP hijacking" for
     // separate `stdin` and `stdout`
@@ -137,10 +181,23 @@ export class DockerSession extends Session {
     return client.execute(node)
   }
 
+  static async stopContainer(container: Container): Promise<void> {
+    const sessionStopBefore = performance.now()
+
+    await container.stop()
+
+    globalStats.record([
+      {
+        measure: dockerSessionStopDurationMeasure,
+        value: performance.now() - sessionStopBefore
+      }
+    ])
+  }
+
   async end(node: SoftwareSession): Promise<SoftwareSession> {
     const { container, client } = this
     if (container !== undefined) {
-      await container.stop()
+      await DockerSession.stopContainer(container)
       await container.remove()
     }
     if (client !== undefined) {
@@ -203,7 +260,9 @@ export class DockerSession extends Session {
     await Promise.all(
       containers.map(async info => {
         const container = docker.getContainer(info.Id)
-        if (info.State === 'running') await container.stop()
+        if (info.State === 'running')
+          await DockerSession.stopContainer(container)
+
         await container.remove()
       })
     )
