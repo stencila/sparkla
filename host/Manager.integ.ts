@@ -79,7 +79,7 @@ describe('Manager', () => {
    * Begin a session, check it's properties, then
    * explicity end it, before dinally disconnecting
    */
-  test('begin, end, disconnect', async () => {
+  test.skip('begin, end, disconnect', async () => {
     const client = new WebSocketClient(address)
     let session = await client.begin(softwareSession())
     expect(session).toHaveProperty('id')
@@ -106,7 +106,7 @@ describe('Manager', () => {
   /**
    * Execute code expression with an implicitly created session
    */
-  test('execute: Python CodeExpression with implicit session', async () => {
+  test.skip('execute: Python CodeExpression with implicit session', async () => {
     const expr = await client.execute(
       codeExpression('7 * 6 + 32', {
         programmingLanguage: 'python'
@@ -119,7 +119,7 @@ describe('Manager', () => {
   /**
    * Begin a session and execute some Python code in it
    */
-  test('execute: Python CodeChunk within a session', async () => {
+  test.skip('execute: Python CodeChunk within a session', async () => {
     const session = await client.begin(
       softwareSession({
         environment: softwareEnvironment('stencila/sparkla-ubuntu')
