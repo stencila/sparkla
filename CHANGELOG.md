@@ -1,3 +1,19 @@
+# [0.6.0](https://github.com/stencila/sparkla/compare/v0.5.1...v0.6.0) (2019-11-04)
+
+
+### Bug Fixes
+
+* Added missing continuation-local-storage types ([ef95207](https://github.com/stencila/sparkla/commit/ef95207371e53a254f315de5cfa0034c40bdabc6))
+* Linting fixes ([5c6f90d](https://github.com/stencila/sparkla/commit/5c6f90d9100cee8e4b2233f7b660d49d27aa8a56))
+
+
+### Features
+
+* **Manager:** Close sessions when associated client disconnects ([19dcb66](https://github.com/stencila/sparkla/commit/19dcb6625c773c51500250d4673c9b61f9ecb216)), closes [#9](https://github.com/stencila/sparkla/issues/9)
+* Add logging of session count to opencensus with prometheus export ([a9e0b24](https://github.com/stencila/sparkla/commit/a9e0b243238c9470fcdf07992ccd375c39e248ac))
+* Added measuring of system CPU and memory usage ([ada3729](https://github.com/stencila/sparkla/commit/ada3729fa65a5c4e84b6b00c5a9f4efed30c7f27))
+* Added Session and Host data logging with opencensus ([df5f7f1](https://github.com/stencila/sparkla/commit/df5f7f1af6324ba4f3968f3fa2553d7e376fe428))
+
 ## [0.5.1](https://github.com/stencila/sparkla/compare/v0.5.0...v0.5.1) (2019-10-29)
 
 
