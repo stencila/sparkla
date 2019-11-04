@@ -28,14 +28,37 @@ export class ManagerServer extends WebSocketServer {
     this.app.get(
       '/admin',
       (request: FastifyRequest, reply: FastifyReply<any>): void => {
+        // @ts-ignore that user does not exist on request
+        const user = request.user
+
+        if (
+          process.env.NODE_ENV !== 'development' &&
+          (user === undefined || user.admin !== true)
+        ) {
+          reply.status(403).send('User is not admin')
+          return
+        }
+
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         if (request.headers.accept.includes('application/json')) {
           const { sessions } = this.executor as Manager
           reply.send(sessions)
-        }
-        reply.sendFile('admin.html')
+        } else reply.sendFile('admin.html')
       }
     )
+  }
+
+  protected async jwtValidate(
+    request: FastifyRequest,
+    reply: FastifyReply<any>
+  ): Promise<void> {
+    if (request.raw.url !== undefined && request.raw.url.startsWith('/public/'))
+      return // allow downloading from public URLs (static files) without JWT
+
+    if (request.query.JWT_OVERRIDE !== undefined) {
+      request.headers.authorization = `Bearer ${request.query.JWT_OVERRIDE}`
+    }
+    super.jwtValidate(request, reply)
   }
 
   /**
@@ -44,7 +67,7 @@ export class ManagerServer extends WebSocketServer {
    * Override to end all sessions for the client.
    */
   async onDisconnected(client: TcpServerClient): Promise<void> {
-    // Call `WebSockerServer.onDisconnected` to de-register the client
+    // Call `WebSocketServer.onDisconnected` to de-register the client
     // as normal
     super.onDisconnected(client)
 

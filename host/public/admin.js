@@ -13,6 +13,9 @@ const { HttpClient } = executa
  * requests to the `Manager` and don't need to delegate
  * to in-browser executors (e.g. JS or WASM).
  */
+
+const jwt = new URLSearchParams(window.location.search).get('JWT_OVERRIDE')
+
 const executor = new HttpClient(window.location.origin)
 
 /**
@@ -31,7 +34,8 @@ function elem(html) {
 async function listSessions() {
   const response = await fetch('/admin', {
     headers: {
-      Accept: 'application/json; charset=utf-8'
+      Accept: 'application/json; charset=utf-8',
+      Authorization: `Bearer ${jwt}`
     }
   })
   const sessions = await response.json()
