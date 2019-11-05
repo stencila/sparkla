@@ -169,12 +169,14 @@ export class Manager extends BaseExecutor {
       }
 
       // Get the session `instance` and ask it to execute the node
-      const { instance } = this.sessions[id]
-      if (instance === undefined) {
+      const sessionInfo = this.sessions[id]
+      if (sessionInfo === undefined) {
         // This should never happen; if it does there is a bug in begin() or end()
         log.error(`No instance with id; already deleted, mis-routed?: ${id}`)
         return node
       }
+      const { instance } = sessionInfo
+
       const executeBefore = performance.now()
 
       const processedNode = (await instance.execute(node)) as NodeType
@@ -265,13 +267,13 @@ export class Manager extends BaseExecutor {
         return node
       }
 
-      const session = this.sessions[sessionId]
-      if (session === undefined) {
+      const sessionInfo = this.sessions[sessionId]
+      if (sessionInfo === undefined) {
         // If this happens, it's probably due to a bug in the client
         log.warn(`When ending session, session with id not found: ${sessionId}`)
         return node
       }
-      const { instance, clients } = session
+      const { instance, clients } = sessionInfo
 
       // Notify clients that the session is going to be ended
       if (notify) {
