@@ -79,7 +79,7 @@ export interface SessionInfo {
   /**
    * The clients that have used this session
    */
-  clients: (string | undefined)[]
+  clients: string[]
 }
 
 export class Manager extends BaseExecutor {
@@ -136,7 +136,7 @@ export class Manager extends BaseExecutor {
    * since actual capabilities will be determined by
    * sessions delegated to.
    */
-  capabilities(): Promise<Capabilities> {
+  public capabilities(): Promise<Capabilities> {
     return Promise.resolve({
       decode: true,
       encode: true,
@@ -148,7 +148,7 @@ export class Manager extends BaseExecutor {
     })
   }
 
-  async execute<NodeType extends Node>(
+  public async execute<NodeType extends Node>(
     node: NodeType,
     session?: SoftwareSession
   ): Promise<NodeType> {
@@ -191,7 +191,7 @@ export class Manager extends BaseExecutor {
     return node
   }
 
-  async begin<NodeType extends Node>(
+  public async begin<NodeType extends Node>(
     node: NodeType,
     user: User = {}
   ): Promise<NodeType> {
@@ -235,7 +235,7 @@ export class Manager extends BaseExecutor {
           node: begunSession,
           instance,
           user,
-          clients: [clientId]
+          clients: clientId !== undefined ? [clientId] : []
         }
         recordSessionsCount(this.sessions)
 
@@ -245,9 +245,17 @@ export class Manager extends BaseExecutor {
     return node
   }
 
-  async end<NodeType extends Node>(
+  /**
+   * End a node (usually a `SoftwareSession`)
+   *
+   * @param node The node to end
+   * @param user The user that is ending the node
+   * @param notify Notify clients that the session will be ended?
+   */
+  public async end<NodeType extends Node>(
     node: NodeType,
-    user: User = {}
+    user: User = {},
+    notify = true
   ): Promise<NodeType> {
     if (isA('SoftwareSession', node)) {
       const { id: sessionId } = node
@@ -257,11 +265,18 @@ export class Manager extends BaseExecutor {
         return node
       }
 
-      const { instance } = this.sessions[sessionId]
-      if (instance === undefined) {
+      const session = this.sessions[sessionId]
+      if (session === undefined) {
         // If this happens, it's probably due to a bug in the client
-        log.warn(`When ending session, id not found: ${sessionId}`)
+        log.warn(`When ending session, session with id not found: ${sessionId}`)
         return node
+      }
+      const { instance, clients } = session
+
+      // Notify clients that the session is going to be ended
+      if (notify) {
+        for (const clientId of clients)
+          this.notifyClients('info', `Ending session ${sessionId}`, [clientId])
       }
 
       // Actually end the session
@@ -282,16 +297,16 @@ export class Manager extends BaseExecutor {
    * no other clients using it.
    *
    * In the future we will record all clients using a session
-   * (i.e. calling `execute`) so that a session is on ended when all
+   * (i.e. calling `execute`) so that a session is ended when all
    * clients disconnect.
    *
    * @param clientId The id of the client
    */
-  endClient(clientId: string): Promise<SoftwareSession[]> {
+  public endClient(clientId: string): Promise<SoftwareSession[]> {
     return Promise.all(
       Object.entries(this.sessions).map(([sessionId, { node, clients }]) => {
         if (clients.includes(clientId)) {
-          if (clients.length === 1) return this.end(node)
+          if (clients.length === 1) return this.end(node, undefined, false)
           else
             this.sessions[sessionId].clients = clients.filter(
               id => id !== clientId
@@ -308,10 +323,25 @@ export class Manager extends BaseExecutor {
    * This method should be avoided but may be useful for
    * cleanup when forcing shutdown of a manager.
    */
-  endAll(): Promise<void> {
+  public endAll(): Promise<void> {
     if (this.SessionType === DockerSession) return DockerSession.endAll()
     if (this.SessionType === FirecrackerSession)
       return FirecrackerSession.endAll()
     return Promise.resolve()
+  }
+
+  /**
+   * Notify clients.
+   *
+   * This is in lieu of such a method being implemented in `BaseExecutor`
+   */
+  protected notifyClients(
+    subject: string,
+    message: string,
+    clients?: string[]
+  ) {
+    // @ts-ignore that servers is private to BaseExecutor class
+    const server = this.servers[0] as ManagerServer
+    server.notify(subject, message, clients)
   }
 }
