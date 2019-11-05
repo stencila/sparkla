@@ -68,7 +68,7 @@ async function listSessions() {
       </div>`
     )
 
-    item.querySelector('.end').onclick = () => endSession(id)
+    item.querySelector('.end').onclick = () => endSession(node)
     item.querySelector('.select').onclick = () => selectSession(node)
 
     list.appendChild(item)
@@ -79,6 +79,16 @@ async function listSessions() {
  * Start by listing sessions
  */
 listSessions()
+
+/**
+ * Default session to start (can be edited by admin user)
+ */
+const defaultSession = {
+  type: 'SoftwareSession',
+  cpuRequested: 1,
+  memoryRequested: 1,
+  networkTransferRequested: 1
+}
 
 /**
  * Begin a session
@@ -98,11 +108,11 @@ async function beginSession(session) {
  */
 const beginElem = elem(`
     <div>
-      <textarea rows="10" cols="80">
-{
-  "type": "SoftwareSession"
-}
-      </textarea>
+      <textarea rows="10" cols="80">${JSON.stringify(
+        defaultSession,
+        null,
+        '  '
+      )}</textarea>
       <stencila-button class="begin" size="xsmall" icon="play">Begin</stencila-button>
     </div>
 `)

@@ -1,7 +1,6 @@
 import { SoftwareSession, Node } from '@stencila/schema'
 
 export abstract class Session {
-
   /**
    * Get a representation of the session
    *

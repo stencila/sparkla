@@ -46,10 +46,23 @@ export class ManagerServer extends WebSocketServer {
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         if (request.headers.accept.includes('application/json')) {
           const { sessions } = this.executor as Manager
-          const sessionReprs = Object.entries(sessions).reduce((prev, [sessionId, sessionInfo]) => {
-            const { node, user, clients, instance } = sessionInfo
-            return {...prev, ...{[sessionId]: { node, user, clients, instance: instance.repr()}}}
-          }, {})
+          const sessionReprs = Object.entries(sessions).reduce(
+            (prev, [sessionId, sessionInfo]) => {
+              const { node, user, clients, instance } = sessionInfo
+              return {
+                ...prev,
+                ...{
+                  [sessionId]: {
+                    node,
+                    user,
+                    clients,
+                    instance: instance.repr()
+                  }
+                }
+              }
+            },
+            {}
+          )
           reply.send(sessionReprs)
         } else reply.sendFile('admin.html')
       }

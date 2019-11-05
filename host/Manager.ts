@@ -1,15 +1,22 @@
-import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core';
-import { BaseExecutor, Capabilities, User } from '@stencila/executa';
-import { getLogger } from '@stencila/logga';
-import { date, isA, Node, softwareEnvironment, SoftwareSession, softwareSession } from '@stencila/schema';
-import crypto from 'crypto';
+import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
+import { BaseExecutor, Capabilities, User } from '@stencila/executa'
+import { getLogger } from '@stencila/logga'
+import {
+  date,
+  isA,
+  Node,
+  softwareEnvironment,
+  SoftwareSession,
+  softwareSession
+} from '@stencila/schema'
+import crypto from 'crypto'
 // @ts-ignore
-import moniker from 'moniker';
-import { performance } from 'perf_hooks';
-import { DockerSession } from './DockerSession';
-import { FirecrackerSession } from './FirecrackerSession';
-import { ManagerServer } from './ManagerServer';
-import { Session } from './Session';
+import moniker from 'moniker'
+import { performance } from 'perf_hooks'
+import { DockerSession } from './DockerSession'
+import { FirecrackerSession } from './FirecrackerSession'
+import { ManagerServer } from './ManagerServer'
+import { Session } from './Session'
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -229,7 +236,8 @@ export class Manager extends BaseExecutor {
           ...sessionPermitted,
           id,
           name,
-          dateStart
+          dateStart,
+          status: 'started'
         })
 
         // Store and record it's addition
@@ -283,7 +291,11 @@ export class Manager extends BaseExecutor {
 
       // Actually end the session
       const dateEnd = date(new Date().toISOString())
-      const endedSession = await instance.end({ ...node, dateEnd })
+      const endedSession = await instance.end({
+        ...node,
+        dateEnd,
+        status: 'stopped'
+      })
 
       // Delete and record it's removal
       delete this.sessions[sessionId]
