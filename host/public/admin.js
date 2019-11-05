@@ -14,9 +14,13 @@ const { HttpClient } = executa
  * to in-browser executors (e.g. JS or WASM).
  */
 
-const jwt = new URLSearchParams(window.location.search).get('JWT_OVERRIDE')
+const jwt = new URLSearchParams(window.location.search).get('token')
 
-const executor = new HttpClient(window.location.origin)
+const executor = new HttpClient({
+  host: window.location.hostname,
+  port: window.location.port,
+  jwt
+})
 
 /**
  * Create a element from HTML
