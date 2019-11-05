@@ -1,21 +1,15 @@
-import { BaseExecutor, User } from '@stencila/executa'
-import { getLogger } from '@stencila/logga'
-import {
-  date,
-  isA,
-  Node,
-  softwareEnvironment,
-  SoftwareSession,
-  softwareSession
-} from '@stencila/schema'
-import crypto from 'crypto'
-import { DockerSession } from './DockerSession'
-import { FirecrackerSession } from './FirecrackerSession'
-import { Session } from './Session'
-import { Capabilities } from '@stencila/executa/dist/lib/base/Executor'
-import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
-import { performance } from 'perf_hooks'
-import { ManagerServer } from './ManagerServer'
+import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core';
+import { BaseExecutor, Capabilities, User } from '@stencila/executa';
+import { getLogger } from '@stencila/logga';
+import { date, isA, Node, softwareEnvironment, SoftwareSession, softwareSession } from '@stencila/schema';
+import crypto from 'crypto';
+// @ts-ignore
+import moniker from 'moniker';
+import { performance } from 'perf_hooks';
+import { DockerSession } from './DockerSession';
+import { FirecrackerSession } from './FirecrackerSession';
+import { ManagerServer } from './ManagerServer';
+import { Session } from './Session';
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -62,7 +56,7 @@ export interface SessionType {
 
 export interface SessionInfo {
   /**
-   * The `SoftwareSession` node when it was began
+   * The `SoftwareSession` node
    */
   node: SoftwareSession
 
@@ -215,10 +209,15 @@ export class Manager extends BaseExecutor {
         // but in case they are, we override them here.
         const sessionPermitted = { ...sessionRequested, ...user.session }
 
+        let { id, name } = sessionPermitted
+
         // Assign a unique, difficult to guess, identifier
         // that allows routing back to the `Session` instance
         // in the execute() method
-        const sessionId = crypto.randomBytes(32).toString('hex')
+        if (id === undefined) id = crypto.randomBytes(32).toString('hex')
+
+        // Assign a human friendly name if necessary
+        if (name === undefined) name = moniker.choose()
 
         // Record the client that started the session
         const clientId = user.client !== undefined ? user.client.id : undefined
@@ -228,12 +227,13 @@ export class Manager extends BaseExecutor {
         const dateStart = date(new Date().toISOString())
         const begunSession = await instance.begin({
           ...sessionPermitted,
-          id: sessionId,
+          id,
+          name,
           dateStart
         })
 
         // Store and record it's addition
-        this.sessions[sessionId] = {
+        this.sessions[id] = {
           node: begunSession,
           instance,
           user,

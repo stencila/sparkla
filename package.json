@@ -38,9 +38,9 @@
     "@opencensus/exporter-prometheus": "0.0.18",
     "@stencila/executa": "^0.10.0",
     "@stencila/logga": "^1.4.0",
-    "@stencila/schema": "^0.30.5",
     "dockerode": "^3.0.2",
     "fastify-static": "^2.5.0",
+    "moniker": "^0.1.2",
     "node-os-utils": "^1.1.0"
   },
   "prettier": "@stencila/dev-config/prettier-config.json",

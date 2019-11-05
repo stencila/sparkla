@@ -46,38 +46,39 @@ async function listSessions() {
 
   let list = document.querySelector('#sessions')
   if (!list) {
-    list = elem('<ul id="sessions"></ul>')
+    list = elem('<div id="sessions"></div>')
     document.body.appendChild(list)
   } else {
     while (list.firstChild) list.removeChild(list.firstChild)
   }
   for (const id in sessions) {
-    const session = sessions[id]
+    const sessionInfo = sessions[id]
+    const { node } = sessionInfo
+    const { name } = node
     const item = elem(
-      `<li class="session" id="${id}">
+      `<div class="session" id="${id}">
+        <stencila-action-menu>
+          <stencila-button class="end" size="xsmall" icon="x-square">End</stencila-button>
+          <stencila-button class="select" size="xsmall" icon="circle">Select</stencila-button>
+        </stencila-action-menu>
         <details>
-          <summary>
-            ${id}
-            <button class="end">End</button>
-            <button class="select">Select</button>
-          </summary>
-          <pre><code>${JSON.stringify(session, null, '  ')}</code></pre>
+          <summary>${name}</summary>
+          <pre><code>${JSON.stringify(sessionInfo, null, '  ')}</code></pre>
         </details>
-      </li>`
+      </div>`
     )
 
-    item.querySelector('button.end').onclick = () => endSession(id)
-    item.querySelector('button.select').onclick = () => selectSession(id)
+    item.querySelector('.end').onclick = () => endSession(id)
+    item.querySelector('.select').onclick = () => selectSession(node)
 
     list.appendChild(item)
   }
 }
 
 /**
- * Start by listing sessions an update every 5s
+ * Start by listing sessions
  */
 listSessions()
-setInterval(listSessions, 5000)
 
 /**
  * Begin a session
@@ -102,10 +103,10 @@ const beginElem = elem(`
   "type": "SoftwareSession"
 }
       </textarea>
-      <button class="begin">Begin</button>
+      <stencila-button class="begin" size="xsmall" icon="play">Begin</stencila-button>
     </div>
 `)
-beginElem.querySelector('button.begin').onclick = () =>
+beginElem.querySelector('.begin').onclick = () =>
   beginSession(JSON.parse(beginElem.querySelector('textarea').value))
 document.body.appendChild(beginElem)
 
@@ -114,12 +115,9 @@ document.body.appendChild(beginElem)
  *
  * @param id The id of the session to end.
  */
-async function endSession(id) {
-  const session = await executor.end({
-    type: 'SoftwareSession',
-    id
-  })
-  console.log('Ended', session)
+async function endSession(sessionNode) {
+  sessionNode = await executor.end(sessionNode)
+  console.log('Ended', sessionNode)
   listSessions()
 }
 
@@ -128,7 +126,7 @@ async function endSession(id) {
  */
 const detailsElem = elem(`
   <div class="details">
-    <h3 class="id">No session selected</h3>
+    <h3 class="name">No session selected</h3>
   </div>
 `)
 document.body.appendChild(detailsElem)
@@ -152,14 +150,11 @@ detailsElem.appendChild(codeChunkComp)
  *
  * @param id The id of the session
  */
-function selectSession(id) {
-  detailsElem.querySelector('.id').innerText = id
+function selectSession(sessionNode) {
+  const { name } = sessionNode
+  detailsElem.querySelector('.name').innerText = name
   // Attach the session to the web component
   codeChunkComp.executeHandler = codeChunk => {
-    return executor.execute(codeChunk, {
-      type: 'SoftwareSession',
-      id,
-      dateStart: 'foo'
-    })
+    return executor.execute(codeChunk, sessionNode)
   }
 }
