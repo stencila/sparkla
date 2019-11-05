@@ -67,10 +67,13 @@ export class DockerSession extends Session {
    */
   client?: StreamClient
 
-
   repr(): any {
-    const container = this.container !== undefined ? {
-      id: this.container.id } : undefined
+    const container =
+      this.container !== undefined
+        ? {
+            id: this.container.id
+          }
+        : undefined
     return {
       container
     }
@@ -89,6 +92,8 @@ export class DockerSession extends Session {
       memoryLimit,
       cpuRequested,
       cpuLimit,
+      networkTransferRequested,
+      networkTransferLimit,
       volumeMounts = []
     } = session
 
@@ -102,9 +107,13 @@ export class DockerSession extends Session {
       log.warn(`Session environment was not set so defaulting to: ${image}`)
     }
 
-    // Set memory and CPU as minimum of requests and limits
+    // Set memory and CPU etc as minimum of requests and limits
     const memory = optionalMin(memoryRequested, memoryLimit)
     const cpuQuota = optionalMin(cpuRequested, cpuLimit)
+    const networkTransfer = optionalMin(
+      networkTransferRequested,
+      networkTransferLimit
+    )
 
     // Create volume mounts
     const mounts = volumeMounts
@@ -140,6 +149,8 @@ export class DockerSession extends Session {
       Labels: {
         sparklaId: id
       },
+      // Disable network if allowed network transfer is zero or less
+      NetworkDisabled: networkTransfer !== undefined && networkTransfer <= 0,
       HostConfig: {
         // Memory limit in bytes. Default 0
         Memory: memory !== undefined ? memory * BYTES_PER_GIB : undefined,
