@@ -93,7 +93,7 @@ export class ManagerServer extends WebSocketServer {
     const manager = this.executor
     if (manager !== undefined) {
       // @ts-ignore that TS doesn't know that this is a Manager instance
-      await manager.endAllClient(client.id)
+      await manager.endClient(client.id)
     }
 
     // De-register the connection as normal
@@ -116,5 +116,17 @@ export class ManagerServer extends WebSocketServer {
     // @ts-ignore that `jwt` is not a property of `this.app`
     const jwt = this.app.jwt.sign(claims)
     log.info(`Admin page at:\n  ${url}/admin?token=${jwt}`)
+  }
+
+  /**
+   * @override Override `HttpServer.stop` to end all the manager's
+   * sessions.
+   */
+  public async stop (): Promise<void> {
+    const manager = this.executor
+    if (manager !== undefined) {
+      // @ts-ignore that TS doesn't know that this is a Manager instance
+      await manager.endAll()
+    }
   }
 }

@@ -43,8 +43,10 @@ beforeAll(async () => {
     if (secret === undefined) {
       throw new Error('Environment variable JWT_SECRET must be set')
     }
-    const jwt = JWT.sign({}, secret)
-    address = new WebSocketAddress(url, '', jwt)
+    address = new WebSocketAddress({
+      ...new WebSocketAddress(url),
+      jwt: JWT.sign({}, secret)
+    })
   }
   console.info(
     `Connecting to manager with address:\n${JSON.stringify(
@@ -57,8 +59,8 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  if (manager !== undefined) await manager.stop()
   if (client !== undefined) await client.stop()
+  if (manager !== undefined) await manager.stop()
 })
 
 // Allow up to 5 minutes for this test
@@ -77,9 +79,9 @@ describe('Manager', () => {
 
   /**
    * Begin a session, check it's properties, then
-   * explicity end it, before dinally disconnecting
+   * explicity end it before disconnecting
    */
-  test.skip('begin, end, disconnect', async () => {
+  test('begin, end, disconnect', async () => {
     const client = new WebSocketClient(address)
     let session = await client.begin(softwareSession())
     expect(session).toHaveProperty('id')
@@ -106,7 +108,7 @@ describe('Manager', () => {
   /**
    * Execute code expression with an implicitly created session
    */
-  test.skip('execute: Python CodeExpression with implicit session', async () => {
+  test('execute: Python CodeExpression with implicit session', async () => {
     const expr = await client.execute(
       codeExpression('7 * 6 + 32', {
         programmingLanguage: 'python'
@@ -119,7 +121,7 @@ describe('Manager', () => {
   /**
    * Begin a session and execute some Python code in it
    */
-  test.skip('execute: Python CodeChunk within a session', async () => {
+  test('execute: Python CodeChunk within a session', async () => {
     const session = await client.begin(
       softwareSession({
         environment: softwareEnvironment('stencila/sparkla-ubuntu')

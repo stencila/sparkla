@@ -61,9 +61,25 @@ export interface SessionType {
 }
 
 export interface SessionInfo {
+  /**
+   * The `SoftwareSession` node when it was began
+   */
   node: SoftwareSession
+
+  /**
+   * The session instance
+   */
   instance: Session
+
+  /**
+   * The user that began this session
+   */
   user: User
+
+  /**
+   * The clients that have used this session
+   */
+  clients: (string | undefined)[]
 }
 
 export class Manager extends BaseExecutor {
@@ -90,21 +106,12 @@ export class Manager extends BaseExecutor {
   })
 
   /**
-   * Session instances mapped to session node id.
+   * Session info mapped to session node id.
    *
    * This allows for fast delegation to the session instance
    * in the `execute()` and `end()` methods.
    */
   public readonly sessions: { [key: string]: SessionInfo } = {}
-
-  /**
-   * Session instances for each client id.
-   *
-   * This allows tracking of the number of sessions per client
-   * and for all session instances associated with a client to be ended
-   * when the client disconnects.
-   */
-  private clients: { [key: string]: Session[] } = {}
 
   constructor(sessionType: SessionType, host = '127.0.0.1', port = 9000) {
     super(
@@ -146,7 +153,7 @@ export class Manager extends BaseExecutor {
     session?: SoftwareSession
   ): Promise<NodeType> {
     if (isA('CodeChunk', node) || isA('CodeExpression', node)) {
-      // Use the default session if non is provided
+      // Use the default session if none is provided
       if (session === undefined) session = this.sessionDefault
 
       // Make sure the session is started
@@ -157,7 +164,7 @@ export class Manager extends BaseExecutor {
       }
       if (id === undefined) {
         // This should never happen; if it does there is a bug in begin()
-        log.error(`No id assigned to session: ${id}`)
+        log.error(`No id assigned to session`)
         return node
       }
 
@@ -210,27 +217,29 @@ export class Manager extends BaseExecutor {
         // that allows routing back to the `Session` instance
         // in the execute() method
         const sessionId = crypto.randomBytes(32).toString('hex')
-        this.sessions[sessionId] = { node, instance, user }
 
-        // Register the session instance against the client so that it
-        // can be ended when the client disconnects, or the number
-        // of session per client can be limited
+        // Record the client that started the session
         const clientId = user.client !== undefined ? user.client.id : undefined
-        if (clientId !== undefined) {
-          if (this.clients[clientId] === undefined)
-            this.clients[clientId] = [instance]
-          else this.clients[clientId].push(instance)
-        }
 
         // Actually start the session and return the updated
         // `SoftwareSession` node.
+        const dateStart = date(new Date().toISOString())
         const begunSession = await instance.begin({
           ...sessionPermitted,
-          id: sessionId
+          id: sessionId,
+          dateStart
         })
-        const dateStart = date(new Date().toISOString())
+
+        // Store and record it's addition
+        this.sessions[sessionId] = {
+          node: begunSession,
+          instance,
+          user,
+          clients: [clientId]
+        }
         recordSessionsCount(this.sessions)
-        return softwareSession({ ...begunSession, dateStart }) as NodeType
+
+        return begunSession as NodeType
       }
     }
     return node
@@ -242,54 +251,55 @@ export class Manager extends BaseExecutor {
   ): Promise<NodeType> {
     if (isA('SoftwareSession', node)) {
       const { id: sessionId } = node
-      if (sessionId === undefined) return node
+      if (sessionId === undefined) {
+        // If this happens, it's probably due to a bug in the client
+        log.warn('When ending session, no session id provided')
+        return node
+      }
 
       const { instance } = this.sessions[sessionId]
-      if (instance === undefined) return node
-
-      const endedSession = await instance.end(node)
-      const dateEnd = date(new Date().toISOString())
-      delete this.sessions[sessionId]
-
-      // De-register the session instance for the client
-      const clientId = user.client !== undefined ? user.client.id : undefined
-      if (clientId !== undefined) {
-        let instances = this.clients[clientId]
-        if (instances !== undefined) {
-          instances = instances.splice(instances.indexOf(instance), 1)
-          if (instances.length > 0) {
-            this.clients[clientId] = instances
-          } else {
-            delete this.clients[clientId]
-          }
-        }
+      if (instance === undefined) {
+        // If this happens, it's probably due to a bug in the client
+        log.warn(`When ending session, id not found: ${sessionId}`)
+        return node
       }
+
+      // Actually end the session
+      const dateEnd = date(new Date().toISOString())
+      const endedSession = await instance.end({ ...node, dateEnd })
+
+      // Delete and record it's removal
+      delete this.sessions[sessionId]
       recordSessionsCount(this.sessions)
-      return softwareSession({ ...endedSession, dateEnd }) as NodeType
+
+      return endedSession as NodeType
     }
     return node
   }
 
   /**
-   * End all sessions for a client.
+   * Remove a client from sessions and end each one if there are
+   * no other clients using it.
    *
-   * This method is normally called when a client disconnects.
-   * As such it does not call `this.end()` since there is no need
-   * to return an updated `SoftwareSession` node. Rather, it just ends
-   * the instance directly.
-   *
-   * In the future, there may be more than one client using a
-   * session, in which case this method will need to check
-   * for that before ending.
+   * In the future we will record all clients using a session
+   * (i.e. calling `execute`) so that a session is on ended when all
+   * clients disconnect.
    *
    * @param clientId The id of the client
    */
-  async endAllClient(clientId: string): Promise<void> {
-    const instances = this.clients[clientId]
-    if (instances !== undefined) {
-      await Promise.all(instances.map(instance => instance.end()))
-      delete this.clients[clientId]
-    }
+  endClient(clientId: string): Promise<SoftwareSession[]> {
+    return Promise.all(
+      Object.entries(this.sessions).map(([sessionId, { node, clients }]) => {
+        if (clients.includes(clientId)) {
+          if (clients.length === 1) return this.end(node)
+          else
+            this.sessions[sessionId].clients = clients.filter(
+              id => id !== clientId
+            )
+        }
+        return Promise.resolve(node)
+      })
+    )
   }
 
   /**
