@@ -67,6 +67,15 @@ export class DockerSession extends Session {
    */
   client?: StreamClient
 
+
+  repr(): any {
+    const container = this.container !== undefined ? {
+      id: this.container.id } : undefined
+    return {
+      container
+    }
+  }
+
   /**
    * Begin a session.
    *

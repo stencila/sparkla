@@ -102,6 +102,13 @@ export class FirecrackerSession extends Session {
     this.bootArgs = 'reboot=k panic=1 pci=off'
   }
 
+  repr(): any {
+    const { id } = this
+    return {
+      id
+    }
+  }
+
   /**
    * Home directory of the VM on the host
    */
