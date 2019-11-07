@@ -7,7 +7,8 @@ import {
   Node,
   softwareEnvironment,
   SoftwareSession,
-  softwareSession
+  softwareSession,
+  codeError
 } from '@stencila/schema'
 import crypto from 'crypto'
 // @ts-ignore
@@ -17,6 +18,7 @@ import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { ManagerServer } from './ManagerServer'
 import { Session } from './Session'
+import { optionalMin } from './util'
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -63,25 +65,69 @@ export interface SessionType {
 
 export interface SessionInfo {
   /**
-   * The `SoftwareSession` node
+   * The `SoftwareSession` node.
    */
   node: SoftwareSession
 
   /**
-   * The session instance
+   * The session instance.
    */
   instance: Session
 
   /**
-   * The user that began this session
+   * The user that began this session.
    */
   user: User
 
   /**
-   * The clients that have used this session
+   * The clients that have used this session.
    */
   clients: string[]
+
+  /**
+   * The start date/time for the session.
+   * Same as `node.dateStart` but as a `number`
+   * for quicker and easier calculation of session
+   * duration.
+   */
+  dateStart: number
+
+  /**
+   * The last date/time that activity was
+   * recorded for the session.
+   */
+  dateLast: number
 }
+
+/**
+ * Interval in milliseconds between checks
+ * for expired sessions.
+ */
+const expiryInterval = 15 * 1000
+
+/**
+ * Number of seconds to provide clients with
+ * a warning prior to reaching maximum session duration.
+ */
+const durationWarning = 10 * 60
+
+/**
+ * Number of seconds to provide clients with
+ * a warning prior to a reaching session timeout.
+ */
+const timeoutWarning = 60
+
+/**
+ * Interval in milliseconds between checks
+ * for stale sessions.
+ */
+const staleInterval = 60 * 1000
+
+/**
+ * Number of seconds that a stopped session is
+ * considered stale and will be removed from the list of sessions.
+ */
+const stalePeriod = 3600
 
 export class Manager extends BaseExecutor {
   /**
@@ -101,8 +147,10 @@ export class Manager extends BaseExecutor {
    * (and usually supplied via a JWT).
    */
   public readonly sessionDefault: SoftwareSession = softwareSession({
-    cpuRequested: 1,
-    memoryRequested: 1,
+    cpuRequest: 1, // 1 CPU
+    memoryRequest: 1, // 1 GiB
+    durationRequest: 6 * 3600, // 6hr
+    timeoutRequest: 1 * 3600, // 1hr
     environment: softwareEnvironment('stencila/sparkla-ubuntu-midi')
   })
 
@@ -128,6 +176,10 @@ export class Manager extends BaseExecutor {
     )
 
     this.SessionType = sessionType
+
+    // Begin checking for expired and stale sessions
+    setInterval(() => this.endExpired(), expiryInterval)
+    setInterval(() => this.removeStale(), staleInterval)
   }
 
   /**
@@ -151,15 +203,16 @@ export class Manager extends BaseExecutor {
 
   public async execute<NodeType extends Node>(
     node: NodeType,
-    session?: SoftwareSession
+    session?: SoftwareSession,
+    user: User = {}
   ): Promise<NodeType> {
     if (isA('CodeChunk', node) || isA('CodeExpression', node)) {
       // Use the default session if none is provided
       if (session === undefined) session = this.sessionDefault
 
       // Make sure the session is started
-      let { id, dateStart } = session
-      if (id === undefined || dateStart === undefined) {
+      let { id } = session
+      if (id === undefined) {
         // Start the session...
         ;({ id } = await this.begin(session))
       }
@@ -169,25 +222,69 @@ export class Manager extends BaseExecutor {
         return node
       }
 
-      // Get the session `instance` and ask it to execute the node
       const sessionInfo = this.sessions[id]
       if (sessionInfo === undefined) {
-        // This should never happen; if it does there is a bug in begin() or end()
-        log.error(`No instance with id; already deleted, mis-routed?: ${id}`)
-        return node
+        // Client is requesting a session that has already ended
+        // and been removed
+        return {
+          ...node,
+          errors: [
+            codeError('error', {
+              message: 'Session has ended'
+            })
+          ]
+        }
       }
-      const { instance } = sessionInfo
 
+      const {
+        node: { status, description, clientsRequest },
+        instance,
+        clients
+      } = sessionInfo
+
+      if (status === 'stopped') {
+        let message = 'Session has ended.'
+        if (typeof description === 'string') message += ' ' + description
+        return { ...node, errors: [codeError('error', { message })] }
+      }
+
+      // Check that the maximum number of concurrent clients has not yet been reached
+      const clientId = user.client !== undefined ? user.client.id : undefined
+      if (clientId !== undefined && !clients.includes(clientId)) {
+        const sessionPermitted: SoftwareSession = {
+          type: 'SoftwareSession',
+          ...user.session
+        }
+        const maxClients = optionalMin(
+          clientsRequest,
+          sessionPermitted.clientsLimit
+        )
+        if (maxClients !== undefined && clients.length >= maxClients) {
+          return {
+            ...node,
+            errors: [
+              codeError('error', {
+                message: 'Maximum number of clients already using this session'
+              })
+            ]
+          }
+        } else {
+          clients.push(clientId)
+        }
+      }
+
+      // Execute the node in the session
       const executeBefore = performance.now()
-
       const processedNode = (await instance.execute(node)) as NodeType
-
       globalStats.record([
         {
           measure: executionDurationMeasure,
           value: performance.now() - executeBefore
         }
       ])
+
+      // Record the activity
+      sessionInfo.dateLast = Date.now() / 1000
 
       return processedNode
     }
@@ -241,11 +338,14 @@ export class Manager extends BaseExecutor {
         })
 
         // Store and record it's addition
+        const now = Date.now() / 1000
         this.sessions[id] = {
           node: begunSession,
           instance,
           user,
-          clients: clientId !== undefined ? [clientId] : []
+          clients: clientId !== undefined ? [clientId] : [],
+          dateStart: now,
+          dateLast: now
         }
         recordSessionsCount(this.sessions)
 
@@ -261,11 +361,14 @@ export class Manager extends BaseExecutor {
    * @param node The node to end
    * @param user The user that is ending the node
    * @param notify Notify clients that the session will be ended?
+   * @param reason The reason for ending the session
    */
+  // eslint-disable-next-line @typescript-eslint/require-await
   public async end<NodeType extends Node>(
     node: NodeType,
     user: User = {},
-    notify = true
+    notify = true,
+    reason?: string
   ): Promise<NodeType> {
     if (isA('SoftwareSession', node)) {
       const { id: sessionId } = node
@@ -283,23 +386,24 @@ export class Manager extends BaseExecutor {
       }
       const { instance, clients } = sessionInfo
 
-      // Notify clients that the session is going to be ended
-      if (notify) {
-        for (const clientId of clients)
-          this.notifyClients('info', `Ending session ${sessionId}`, [clientId])
+      // Notify clients that the session has ended and
+      if (notify !== false) {
+        let message = `Ending session "${node.name}".`
+        if (typeof reason === 'string') message += ' ' + reason
+        this.notify('info', message, node, clients)
       }
 
-      // Actually end the session
-      const dateEnd = date(new Date().toISOString())
-      const endedSession = await instance.end({
+      // End the session node and store it
+      const endedSession = softwareSession({
         ...node,
-        dateEnd,
-        status: 'stopped'
+        dateEnd: date(new Date().toISOString()),
+        status: 'stopped',
+        description: reason
       })
+      sessionInfo.node = endedSession
 
-      // Delete and record it's removal
-      delete this.sessions[sessionId]
-      recordSessionsCount(this.sessions)
+      // Stop the session instance without awating
+      instance.end(endedSession).catch(error => log.error(error))
 
       return endedSession as NodeType
     }
@@ -318,16 +422,93 @@ export class Manager extends BaseExecutor {
    */
   public endClient(clientId: string): Promise<SoftwareSession[]> {
     return Promise.all(
-      Object.entries(this.sessions).map(([sessionId, { node, clients }]) => {
-        if (clients.includes(clientId)) {
-          if (clients.length === 1) return this.end(node, undefined, false)
-          else
-            this.sessions[sessionId].clients = clients.filter(
-              id => id !== clientId
+      Object.entries(this.sessions).map(
+        ([sessionId, { node, user, clients }]) => {
+          if (clients.includes(clientId)) {
+            if (clients.length === 1) {
+              // Only end session if it was not started by admin
+              // @ts-ignore that admin is not a property of user
+              if (user.admin !== true) return this.end(node, undefined, false)
+            } else
+              this.sessions[sessionId].clients = clients.filter(
+                id => id !== clientId
+              )
+          }
+          return Promise.resolve(node)
+        }
+      )
+    )
+  }
+
+  /**
+   * End expired sessions that have either:
+   *
+   *  - exceeded their maximum duration
+   *  - exceeded their inactivity timeout
+   *
+   * It will also send a warning to clients if approaching
+   * either of these.
+   */
+  protected endExpired(): void {
+    Object.entries(this.sessions).map(
+      ([sessionId, { node, dateStart, dateLast, clients }]) => {
+        const {
+          status,
+          durationRequest,
+          durationLimit,
+          timeoutRequest,
+          timeoutLimit
+        } = node
+        if (status === 'stopped') return
+
+        const now = Date.now() / 1000
+
+        const maxDuration = optionalMin(durationRequest, durationLimit)
+        if (maxDuration !== undefined) {
+          const duration = now - dateStart
+          if (duration > maxDuration) {
+            this.end(
+              node,
+              undefined,
+              true,
+              `Reached maximum duration of ${maxDuration} seconds`
+            ).catch(error => log.error(error))
+            return
+          }
+          if (duration > maxDuration - durationWarning)
+            this.notify(
+              'warn',
+              `Session will reach maximum duration in ${Math.round(
+                (maxDuration - duration) / 6
+              ) / 10} minutes`,
+              node,
+              clients
             )
         }
-        return Promise.resolve(node)
-      })
+
+        const maxTimeout = optionalMin(timeoutRequest, timeoutLimit)
+        if (maxTimeout !== undefined) {
+          const timeout = now - dateLast
+          if (timeout > maxTimeout) {
+            this.end(
+              node,
+              undefined,
+              true,
+              `No activity over ${maxTimeout} seconds`
+            ).catch(error => log.error(error))
+            return
+          }
+          if (timeout > maxTimeout - timeoutWarning)
+            this.notify(
+              'warn',
+              `Session will end due to inactivity in ${Math.round(
+                (maxTimeout - timeout) / 6
+              ) / 10} minutes`,
+              node,
+              clients
+            )
+        }
+      }
     )
   }
 
@@ -345,17 +526,24 @@ export class Manager extends BaseExecutor {
   }
 
   /**
-   * Notify clients.
+   * Remove stale sessions.
    *
-   * This is in lieu of such a method being implemented in `BaseExecutor`
+   * This frees memory by removing sessions that have been
+   * stopped for a long time (they are retained for `stalePeriod`
+   * so that the reason for closing can be reported to user).
    */
-  protected notifyClients(
-    subject: string,
-    message: string,
-    clients?: string[]
-  ) {
-    // @ts-ignore that servers is private to BaseExecutor class
-    const server = this.servers[0] as ManagerServer
-    server.notify(subject, message, clients)
+  protected removeStale(): void {
+    Object.entries(this.sessions).map(([sessionId, { node: { dateEnd } }]) => {
+      if (dateEnd !== undefined) {
+        const now = Date.now()
+        const date = new Date(isA('Date', dateEnd) ? dateEnd.value : dateEnd)
+        const stale = (now - date.valueOf()) / 1000
+        if (stale > stalePeriod) {
+          // Delete and record it's removal
+          delete this.sessions[sessionId]
+          recordSessionsCount(this.sessions)
+        }
+      }
+    })
   }
 }
