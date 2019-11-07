@@ -36,7 +36,7 @@
   "dependencies": {
     "@opencensus/core": "0.0.18",
     "@opencensus/exporter-prometheus": "0.0.18",
-    "@stencila/executa": "^0.11.0",
+    "@stencila/executa": "^0.11.1",
     "@stencila/logga": "^1.4.0",
     "dockerode": "^3.0.2",
     "fastify-static": "^2.5.0",
