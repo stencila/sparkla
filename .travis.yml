@@ -10,8 +10,8 @@ before_script:
 
 script:
   - npm run lint
-  - npm run build
   - npm run test:cover -- --forceExit
+  - npm run build
 
 after_success:
   # Upload test coverage to codecov.io

@@ -67,6 +67,18 @@ export class DockerSession extends Session {
    */
   client?: StreamClient
 
+  repr(): any {
+    const container =
+      this.container !== undefined
+        ? {
+            id: this.container.id
+          }
+        : undefined
+    return {
+      container
+    }
+  }
+
   /**
    * Begin a session.
    *
@@ -76,10 +88,12 @@ export class DockerSession extends Session {
     const {
       id = '',
       environment,
-      memoryRequested,
+      memoryRequest,
       memoryLimit,
-      cpuRequested,
+      cpuRequest,
       cpuLimit,
+      networkTransferRequest,
+      networkTransferLimit,
       volumeMounts = []
     } = session
 
@@ -93,9 +107,13 @@ export class DockerSession extends Session {
       log.warn(`Session environment was not set so defaulting to: ${image}`)
     }
 
-    // Set memory and CPU as minimum of requests and limits
-    const memory = optionalMin(memoryRequested, memoryLimit)
-    const cpuQuota = optionalMin(cpuRequested, cpuLimit)
+    // Set memory, CPU etc as minimum of requests and limits
+    const memory = optionalMin(memoryRequest, memoryLimit)
+    const cpuQuota = optionalMin(cpuRequest, cpuLimit)
+    const networkTransfer = optionalMin(
+      networkTransferRequest,
+      networkTransferLimit
+    )
 
     // Create volume mounts
     const mounts = volumeMounts
@@ -126,11 +144,20 @@ export class DockerSession extends Session {
     // See options at https://docs.docker.com/engine/api/v1.40/#operation/ContainerCreate
     const container = (this.container = await docker.createContainer({
       Image: image,
+      // Open a stdin stream to the container for stdio transport
       OpenStdin: true,
+      // Reduce the shutdown timeout. Another alternative is
+      // to set StopSignal to 'SIGKILL' to stop the process immediately
+      // (the default is SIGTERM).
+      // But this approach allows for some gracefulness in shutdown.
+      // @ts-ignore that StopTimeout is not a defined option
+      StopTimeout: 5,
       // Add Sparkla labels to be able to filter these easily
       Labels: {
         sparklaId: id
       },
+      // Disable network if allowed network transfer is zero or less
+      NetworkDisabled: networkTransfer !== undefined && networkTransfer <= 0,
       HostConfig: {
         // Memory limit in bytes. Default 0
         Memory: memory !== undefined ? memory * BYTES_PER_GIB : undefined,
@@ -184,7 +211,20 @@ export class DockerSession extends Session {
   static async stopContainer(container: Container): Promise<void> {
     const sessionStopBefore = performance.now()
 
-    await container.stop()
+    try {
+      await container.stop()
+      await container.remove()
+    } catch (error) {
+      // The session may have been removed already, in which case,
+      // ignore that error
+      const message = error.message as string
+      if (
+        message.includes('No such container') ||
+        message.includes('already in progress')
+      )
+        return
+      else throw error
+    }
 
     globalStats.record([
       {
@@ -196,13 +236,8 @@ export class DockerSession extends Session {
 
   async end(node: SoftwareSession): Promise<SoftwareSession> {
     const { container, client } = this
-    if (container !== undefined) {
-      await DockerSession.stopContainer(container)
-      await container.remove()
-    }
-    if (client !== undefined) {
-      await client.stop()
-    }
+    if (container !== undefined) await DockerSession.stopContainer(container)
+    if (client !== undefined) await client.stop()
     return node
   }
 
@@ -262,8 +297,6 @@ export class DockerSession extends Session {
         const container = docker.getContainer(info.Id)
         if (info.State === 'running')
           await DockerSession.stopContainer(container)
-
-        await container.remove()
       })
     )
   }
