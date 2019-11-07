@@ -1,3 +1,30 @@
+# [0.7.0](https://github.com/stencila/sparkla/compare/v0.6.0...v0.7.0) (2019-11-07)
+
+
+### Bug Fixes
+
+* **Admin page:** Reduce noise in display of session instances ([99836ea](https://github.com/stencila/sparkla/commit/99836eabc33beabfc96756f206708d7d77e7458b))
+* **Dependencies:** Update Executa version ([ce16a2a](https://github.com/stencila/sparkla/commit/ce16a2a3c5a5d324cf9848553b86f68b6bea5d9f))
+* **Dependencies:** Upgrade Executa version ([7913fa9](https://github.com/stencila/sparkla/commit/7913fa9e6647c1451ce1684fcac52de197ad315a))
+* **Dependencies:** Upgrade Executa version ([c756937](https://github.com/stencila/sparkla/commit/c756937ba8d25fa0c08ac140065a419b4c2459df))
+* **DockerSession:** Adapt to new Schema version; other fixes ([eb8e7a8](https://github.com/stencila/sparkla/commit/eb8e7a8e485f51eb656bf7664b1546aad95272f5))
+* **Manager:** Fix ending of sessions when client disconnects ([0e95ef6](https://github.com/stencila/sparkla/commit/0e95ef69ade250d499b7ef7064776625ae1a55ad))
+* **Manager:** Handle missing session id better ([d23c7b4](https://github.com/stencila/sparkla/commit/d23c7b4bc2bc65d08a28bf75fcd5b50db3b78f52))
+* **Manager Server:** Require special JWT for admin routes ([fe564a0](https://github.com/stencila/sparkla/commit/fe564a0003270452c8e1ff2778a326e85a150f8f))
+* **Type declarations:** Add type declarations file ([a29dd52](https://github.com/stencila/sparkla/commit/a29dd52af73844d4d9e4d59eb9206a2744d0b988))
+* **Ubuntu rootfs:** Update versions of Schema and Executa ([3f2dd40](https://github.com/stencila/sparkla/commit/3f2dd40d708aaabaf062f4ae3738ace914034a41))
+
+
+### Features
+
+* Added JWT admin checking for admin page and skipping for /public ([3368d53](https://github.com/stencila/sparkla/commit/3368d53ffb45015dac256277adaf2cd3635edfc6))
+* **Admin:** Add client page and reorganise JS and CSS ([93d2586](https://github.com/stencila/sparkla/commit/93d25862a9b25821d88acf88dc5013268cc83a47))
+* **Admin page:** Add admin page ([36d9a76](https://github.com/stencila/sparkla/commit/36d9a76cb29c430cdd2b44895e8d4d27a2b82d5e)), closes [#20](https://github.com/stencila/sparkla/issues/20)
+* **Docker:** Add ability to disable network ([e23f4dd](https://github.com/stencila/sparkla/commit/e23f4dd055b0e4a3b237322b79518dd0a2145b01))
+* **Manager:** Add checking of clients, duration and timeout ([6c22e6d](https://github.com/stencila/sparkla/commit/6c22e6d22a3e523ccd0ac2d6aa96f5f4445eb862))
+* **Manager:** Notify clients when session is ending ([b5d2d36](https://github.com/stencila/sparkla/commit/b5d2d36d3196657d82d2850ccbf05499d484615b))
+* **Sessions:** Give each session a human readable name if necessary ([b2e1080](https://github.com/stencila/sparkla/commit/b2e10805a28d8ca9c278b463939ba293b7a05969))
+
 # [0.6.0](https://github.com/stencila/sparkla/compare/v0.5.1...v0.6.0) (2019-11-04)
 
 
