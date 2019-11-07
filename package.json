@@ -25,7 +25,7 @@
     "@stencila/dockta": "0.16.1",
     "@types/continuation-local-storage": "3.2.2",
     "@types/dockerode": "2.5.20",
-    "@types/jest": "24.0.20",
+    "@types/jest": "24.0.22",
     "@types/node-os-utils": "1.1.0",
     "jest": "24.9.0",
     "ts-jest": "24.1.0",
