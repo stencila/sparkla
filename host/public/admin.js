@@ -16,16 +16,14 @@ const { WebSocketClient } = executa
  * to in-browser executors (e.g. JS or WASM).
  */
 class ManagerClient extends WebSocketClient {
-
   /**
    * @override
    *
    * Receive a notification from the `ManagerServer`.
    */
-  notified (level, message, node) {
+  notified(level, message, node) {
     addNotification(level, message, node)
   }
-
 }
 
 const token = new URLSearchParams(window.location.search).get('token')
@@ -35,15 +33,6 @@ const executor = new ManagerClient({
   port: window.location.port,
   jwt: token
 })
-
-/**
- * Create a element from HTML
- */
-function elem(html) {
-  const div = document.createElement('div')
-  div.innerHTML = html
-  return div.firstElementChild
-}
 
 /**
  * List all sessions with details and buttons to
@@ -92,7 +81,8 @@ async function listSessions() {
     )
 
     item.querySelector('.select').onclick = () => selectSession(sessionInfo)
-    item.querySelector('.client').onclick = () => window.open(`/public/client.html?session=${id}&token=${token}`, '_blank')
+    item.querySelector('.client').onclick = () =>
+      window.open(`/public/client.html?session=${id}&token=${token}`, '_blank')
     item.querySelector('.end').onclick = () => endSession(node)
 
     list.appendChild(item)
@@ -177,7 +167,7 @@ document.body.appendChild(selectedElem)
  * Select a session to display in detail
  */
 function selectSession(sessionInfo) {
-  const { node: sessionNode} = sessionInfo
+  const { node: sessionNode } = sessionInfo
   const { name } = sessionNode
   selectedElem.innerHTML = `
       <h3>Selected session</h3>
@@ -194,7 +184,9 @@ function selectSession(sessionInfo) {
       </stencila-code-chunk>
     </div>`
   // Attach the session to the code chunk component
-  selectedElem.querySelector('stencila-code-chunk').executeHandler = codeChunk => {
+  selectedElem.querySelector(
+    'stencila-code-chunk'
+  ).executeHandler = codeChunk => {
     return executor.execute(codeChunk, sessionNode)
   }
 }

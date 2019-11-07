@@ -19,12 +19,13 @@ async function addNotification(level, message, node) {
     document.body.appendChild(list)
   }
 
-  const icon = {
-    debug: 'life-buoy',
-    info: 'info',
-    warn: 'alert-triangle',
-    error: 'alert-octogon'
-  }[level] || 'circle'
+  const icon =
+    {
+      debug: 'life-buoy',
+      info: 'info',
+      warn: 'alert-triangle',
+      error: 'alert-octogon'
+    }[level] || 'circle'
   const item = elem(
     `<div class="notification ${level}">
       <stencila-icon icon="${icon}"></stencila-icon>
