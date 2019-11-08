@@ -19,6 +19,7 @@ import { FirecrackerSession } from './FirecrackerSession'
 import { ManagerServer } from './ManagerServer'
 import { Session } from './Session'
 import { optionalMin } from './util'
+import { Config } from './Config';
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -99,41 +100,11 @@ export interface SessionInfo {
   dateLast: number
 }
 
-/**
- * Interval in milliseconds between checks
- * for expired sessions.
- */
-const expiryInterval = 15 * 1000
-
-/**
- * Number of seconds to provide clients with
- * a warning prior to reaching maximum session duration.
- */
-const durationWarning = 10 * 60
-
-/**
- * Number of seconds to provide clients with
- * a warning prior to a reaching session timeout.
- */
-const timeoutWarning = 60
-
-/**
- * Interval in milliseconds between checks
- * for stale sessions.
- */
-const staleInterval = 60 * 1000
-
-/**
- * Number of seconds that a stopped session is
- * considered stale and will be removed from the list of sessions.
- */
-const stalePeriod = 3600
-
 export class Manager extends BaseExecutor {
   /**
-   * The class of sessions (e.g. `FirecrackerSession`) created.
+   * Configuration options
    */
-  public readonly SessionType: SessionType
+  public readonly config: Config
 
   /**
    * The default `SoftwareSession` node.
@@ -162,7 +133,7 @@ export class Manager extends BaseExecutor {
    */
   public readonly sessions: { [key: string]: SessionInfo } = {}
 
-  constructor(sessionType: SessionType, host = '127.0.0.1', port = 9000) {
+  constructor(config: Config = new Config()) {
     super(
       // No peer discovery functions are required at present. Instead, this
       // class keeps track of `Session`s which it delegate to based on
@@ -172,14 +143,14 @@ export class Manager extends BaseExecutor {
       [],
       // Websocket server for receiving requests
       // from browser based clients (also provides HTTP endpoints)
-      [new ManagerServer(host, port)]
+      [new ManagerServer(config.host, config.port)]
     )
 
-    this.SessionType = sessionType
+    this.config = config
 
     // Begin checking for expired and stale sessions
-    setInterval(() => this.endExpired(), expiryInterval)
-    setInterval(() => this.removeStale(), staleInterval)
+    setInterval(() => this.endExpired(), config.expiryInterval * 1000)
+    setInterval(() => this.removeStale(), config.staleInterval * 1000)
   }
 
   /**
@@ -301,7 +272,6 @@ export class Manager extends BaseExecutor {
         return node
       } else {
         // Session needs to be started...
-        const instance = new this.SessionType()
 
         // The requested session overrides the properties of the
         // default session (or, to put it the other way around, the
@@ -328,6 +298,7 @@ export class Manager extends BaseExecutor {
 
         // Actually start the session and return the updated
         // `SoftwareSession` node.
+        const instance = this.config.sessionType === 'docker' ? new DockerSession() : new FirecrackerSession()
         const dateStart = date(new Date().toISOString())
         const begunSession = await instance.begin({
           ...sessionPermitted,
@@ -450,7 +421,8 @@ export class Manager extends BaseExecutor {
    * either of these.
    */
   protected endExpired(): void {
-    Object.entries(this.sessions).map(
+    const { sessions, config: {durationWarning, timeoutWarning}} = this
+    Object.entries(sessions).map(
       ([sessionId, { node, dateStart, dateLast, clients }]) => {
         const {
           status,
@@ -519,9 +491,9 @@ export class Manager extends BaseExecutor {
    * cleanup when forcing shutdown of a manager.
    */
   public endAll(): Promise<void> {
-    if (this.SessionType === DockerSession) return DockerSession.endAll()
-    if (this.SessionType === FirecrackerSession)
-      return FirecrackerSession.endAll()
+    const { config: {sessionType}} = this
+    if (sessionType === 'docker') return DockerSession.endAll()
+    if (sessionType === 'firecracker') return FirecrackerSession.endAll()
     return Promise.resolve()
   }
 
@@ -533,15 +505,16 @@ export class Manager extends BaseExecutor {
    * so that the reason for closing can be reported to user).
    */
   protected removeStale(): void {
-    Object.entries(this.sessions).map(([sessionId, { node: { dateEnd } }]) => {
+    const { sessions, config: {stalePeriod}} = this
+    Object.entries(sessions).map(([sessionId, { node: { dateEnd } }]) => {
       if (dateEnd !== undefined) {
         const now = Date.now()
         const date = new Date(isA('Date', dateEnd) ? dateEnd.value : dateEnd)
         const stale = (now - date.valueOf()) / 1000
         if (stale > stalePeriod) {
           // Delete and record it's removal
-          delete this.sessions[sessionId]
-          recordSessionsCount(this.sessions)
+          delete sessions[sessionId]
+          recordSessionsCount(sessions)
         }
       }
     })

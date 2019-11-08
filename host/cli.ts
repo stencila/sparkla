@@ -16,33 +16,35 @@ import {
   replaceHandlers,
   getLogger
 } from '@stencila/logga'
-import { Manager, SessionType } from './Manager'
-import { FirecrackerSession } from './FirecrackerSession'
-import { DockerSession } from './DockerSession'
+import { Manager } from './Manager'
 import { PrometheusStatsExporter } from '@opencensus/exporter-prometheus'
 import { globalStats } from '@opencensus/core'
 import { SystemStats } from './SystemStats'
+import { Config } from './Config'
+import rc from 'rc'
 
-const log = getLogger('sparkla:cli')
+const usage = `
+Usage:
+  sparkla [commands...] [options...]
 
-// Collect options from command line
-let debug = false
-let sessionType: SessionType = FirecrackerSession
-let host: string | undefined
-let port: number | undefined
-let prometheusExport = false
-for (let index = 2; index < process.argv.length; index++) {
-  const arg = process.argv[index]
-  if (arg === '--debug') debug = true
-  else if (arg === '--docker') sessionType = DockerSession
-  else if (arg === '--firecracker') sessionType = FirecrackerSession
-  else if (arg === '--host') host = process.argv[++index]
-  else if (arg === '--port') port = parseFloat(process.argv[++index])
-  else if (arg === '--prometheus') prometheusExport = true
-  else {
-    log.warn(`Unrecognised argument will be ignored: ${arg}`)
-  }
-}
+Commands:
+  serve           Start the Sparkla web socket server (default)
+  config          Show the configuration that has been loaded
+
+Options:
+  --debug         Output debug level log entries?
+  --host          The host address that the server should listen on
+  --port          The port that the server should listen on
+  --stats         Collect statistics?
+
+  ...and many more, see the docs or provided config file.
+`
+
+let {_: commands, ...options} = rc('sparkla', new Config())
+commands = commands.length === 0 ? ['serve'] : commands
+
+const config = options as Config
+const { debug, stats, prometheus } = config
 
 /**
  * Configure log handler to only show debug events
@@ -54,24 +56,40 @@ replaceHandlers(data => {
   })
 })
 
-/**
- * Export stats to Prometheus if enabled
- */
-if (prometheusExport) {
-  log.info('Starting prometheus stats exporter.')
-  const exporter = new PrometheusStatsExporter({
-    // Metrics will be exported on https://localhost:{port}/metrics
-    port: 9464,
-    startServer: true
-  })
-  globalStats.registerExporter(exporter)
+// Iterate over commands
+commands.map((command: string) => {
+  switch (command) {
+    case 'config':
+      return showConfig()
+    case 'serve':
+      return serve()
+    default:
+      console.error(usage)
+  }
+})
+
+function showConfig() {
+  console.log(JSON.stringify(config, null, '  '))
 }
 
-const ss = new SystemStats()
-ss.setup()
+async function serve() {
+  // Start collecting stats
+  if (stats) {
+    const ss = new SystemStats()
+    ss.setup()
 
-// Create and start manager using specified session class
-const manager = new Manager(sessionType, host, port)
-manager.start().catch(error => {
-  throw error
-})
+    // Export stats to Prometheus if enabled
+    if (prometheus) {
+      const exporter = new PrometheusStatsExporter({
+        // Metrics will be exported on https://localhost:{port}/metrics
+        port: 9464,
+        startServer: true
+      })
+      globalStats.registerExporter(exporter)
+    }
+  }
+
+  // Create and start manager
+  const manager = new Manager(config)
+  await manager.start()
+}
