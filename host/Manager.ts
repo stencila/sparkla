@@ -19,7 +19,7 @@ import { FirecrackerSession } from './FirecrackerSession'
 import { ManagerServer } from './ManagerServer'
 import { Session } from './Session'
 import { optionalMin } from './util'
-import { Config } from './Config';
+import { Config } from './Config'
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -198,6 +198,7 @@ export class Manager extends BaseExecutor {
         // Client is requesting a session that has already ended
         // and been removed
         return {
+          // @ts-ignore TS2698: Spread types may only be created from object types
           ...node,
           errors: [
             codeError('error', {
@@ -216,6 +217,7 @@ export class Manager extends BaseExecutor {
       if (status === 'stopped') {
         let message = 'Session has ended.'
         if (typeof description === 'string') message += ' ' + description
+        // @ts-ignore TS2698: Spread types may only be created from object types
         return { ...node, errors: [codeError('error', { message })] }
       }
 
@@ -232,6 +234,7 @@ export class Manager extends BaseExecutor {
         )
         if (maxClients !== undefined && clients.length >= maxClients) {
           return {
+            // @ts-ignore TS2698: Spread types may only be created from object types
             ...node,
             errors: [
               codeError('error', {
@@ -276,6 +279,7 @@ export class Manager extends BaseExecutor {
         // The requested session overrides the properties of the
         // default session (or, to put it the other way around, the
         // default fills in the missing properties of the requested)
+        // @ts-ignore TS2698: Spread types may only be created from object types
         const sessionRequested = { ...this.sessionDefault, ...node }
 
         // The `user.session` overrides the properties of the
@@ -298,7 +302,10 @@ export class Manager extends BaseExecutor {
 
         // Actually start the session and return the updated
         // `SoftwareSession` node.
-        const instance = this.config.sessionType === 'docker' ? new DockerSession() : new FirecrackerSession()
+        const instance =
+          this.config.sessionType === 'docker'
+            ? new DockerSession()
+            : new FirecrackerSession()
         const dateStart = date(new Date().toISOString())
         const begunSession = await instance.begin({
           ...sessionPermitted,
@@ -334,6 +341,7 @@ export class Manager extends BaseExecutor {
    * @param notify Notify clients that the session will be ended?
    * @param reason The reason for ending the session
    */
+
   // eslint-disable-next-line @typescript-eslint/require-await
   public async end<NodeType extends Node>(
     node: NodeType,
@@ -366,6 +374,7 @@ export class Manager extends BaseExecutor {
 
       // End the session node and store it
       const endedSession = softwareSession({
+        // @ts-ignore TS2698: Spread types may only be created from object types
         ...node,
         dateEnd: date(new Date().toISOString()),
         status: 'stopped',
@@ -421,7 +430,10 @@ export class Manager extends BaseExecutor {
    * either of these.
    */
   protected endExpired(): void {
-    const { sessions, config: {durationWarning, timeoutWarning}} = this
+    const {
+      sessions,
+      config: { durationWarning, timeoutWarning }
+    } = this
     Object.entries(sessions).map(
       ([sessionId, { node, dateStart, dateLast, clients }]) => {
         const {
@@ -491,7 +503,9 @@ export class Manager extends BaseExecutor {
    * cleanup when forcing shutdown of a manager.
    */
   public endAll(): Promise<void> {
-    const { config: {sessionType}} = this
+    const {
+      config: { sessionType }
+    } = this
     if (sessionType === 'docker') return DockerSession.endAll()
     if (sessionType === 'firecracker') return FirecrackerSession.endAll()
     return Promise.resolve()
@@ -505,7 +519,10 @@ export class Manager extends BaseExecutor {
    * so that the reason for closing can be reported to user).
    */
   protected removeStale(): void {
-    const { sessions, config: {stalePeriod}} = this
+    const {
+      sessions,
+      config: { stalePeriod }
+    } = this
     Object.entries(sessions).map(([sessionId, { node: { dateEnd } }]) => {
       if (dateEnd !== undefined) {
         const now = Date.now()

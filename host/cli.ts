@@ -40,7 +40,7 @@ Options:
   ...and many more, see the docs or provided config file.
 `
 
-let {_: commands, ...options} = rc('sparkla', new Config())
+let { _: commands, ...options } = rc('sparkla', new Config())
 commands = commands.length === 0 ? ['serve'] : commands
 
 const config = options as Config

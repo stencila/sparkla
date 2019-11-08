@@ -18,7 +18,6 @@ import {
   softwareSession
 } from '@stencila/schema'
 import JWT from 'jsonwebtoken'
-import { DockerSession } from './DockerSession'
 import { Manager } from './Manager'
 
 let manager: Manager
@@ -34,7 +33,7 @@ beforeAll(async () => {
     }
     // Start a manager locally and get it's
     // address (which contains a JWT)
-    manager = new Manager(DockerSession)
+    manager = new Manager()
     await manager.start()
     address = manager.addresses().ws as WebSocketAddress
   } else {
