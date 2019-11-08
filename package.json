@@ -15,12 +15,17 @@
     "test:unit": "jest --testPathPattern=\\.test\\.ts$",
     "test:integ": "jest --runInBand --testPathPattern=\\.integ\\.ts$",
     "build": "tsc",
+    "docs": "npm run docs:options",
+    "docs:options": "ts-node docs",
+    "cli": "node dist/cli",
+    "cli:dev": "ts-node host/cli",
     "serve": "node dist/cli serve",
     "serve:dev": "JWT_SECRET=not-a-secret ts-node-dev host/cli serve --debug",
     "serve:dev-jwt": "JWT_SECRET=not-a-secret ts-node host/cli serve --debug"
   },
   "license": "Apache-2.0",
   "devDependencies": {
+    "@gerrit0/typedoc": "^0.15.8",
     "@stencila/dev-config": "1.2.2",
     "@stencila/dockta": "0.16.1",
     "@types/continuation-local-storage": "3.2.2",
@@ -32,7 +37,7 @@
     "ts-jest": "24.1.0",
     "ts-node": "8.4.1",
     "ts-node-dev": "1.0.0-pre.44",
-    "typescript": "3.6.4"
+    "typescript": "^3.7.2"
   },
   "dependencies": {
     "@opencensus/core": "0.0.18",
