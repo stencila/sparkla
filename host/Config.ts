@@ -1,20 +1,20 @@
-import { PrometheusStatsExporter } from "@opencensus/exporter-prometheus";
+import { PrometheusStatsExporter } from '@opencensus/exporter-prometheus'
 
 export class Config {
   /**
    * Output debug level log entries?
    */
-  debug: boolean = false
+  debug = false
 
   /**
-   * The host address that the server should listen on
+   * The host address that the server should listen on.
    */
   host = '127.0.0.1'
 
   /**
-   * The port that the server should listen on
+   * The port that the server should listen on.
    */
-  port: number = 9000
+  port = 9000
 
   /**
    * The class of sessions created.
@@ -25,39 +25,39 @@ export class Config {
    * Interval in seconds between checks
    * for expired sessions.
    */
-  expiryInterval: number = 15
+  expiryInterval = 15
 
   /**
    * Number of seconds to provide clients with
    * a warning prior to reaching maximum session duration.
    */
-  durationWarning: number = 600
+  durationWarning = 600
 
   /**
    * Number of seconds to provide clients with
    * a warning prior to a reaching session timeout.
    */
-  timeoutWarning: number = 60
+  timeoutWarning = 60
 
   /**
    * Interval in seconds between checks
    * for stale sessions.
    */
-  staleInterval: number = 60
+  staleInterval = 60
 
   /**
    * Number of seconds that a stopped session is
    * considered stale and will be removed from the list of sessions.
    */
-  stalePeriod: number = 3600
+  stalePeriod = 3600
 
   /**
    * Collect statistics on session and system status?
    */
-  stats: boolean = true
+  stats = true
 
   /**
    * Export stats for Prometheus?
    */
-  prometheus: boolean = true
+  prometheus = true
 }
