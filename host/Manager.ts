@@ -1,25 +1,35 @@
 import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
-import { BaseExecutor, Capabilities, User } from '@stencila/executa'
+import {
+  BaseExecutor,
+  Capabilities,
+  User,
+  WebSocketClient,
+  Manifest,
+  WebSocketAddress
+} from '@stencila/executa'
 import { getLogger } from '@stencila/logga'
 import {
+  codeError,
   date,
   isA,
   Node,
   softwareEnvironment,
   SoftwareSession,
-  softwareSession,
-  codeError
+  softwareSession
 } from '@stencila/schema'
 import crypto from 'crypto'
 // @ts-ignore
+import discoveryChannel from 'discovery-channel'
+// @ts-ignore
 import moniker from 'moniker'
 import { performance } from 'perf_hooks'
+import { Config } from './Config'
 import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { ManagerServer } from './ManagerServer'
 import { Session } from './Session'
-import { optionalMin, localIP, globalIP } from './util'
-import { Config } from './Config'
+import { globalIP, localIP, optionalMin } from './util'
+import { Peer } from '@stencila/executa/dist/lib/base/BaseExecutor'
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -113,6 +123,23 @@ export class Manager extends BaseExecutor {
   private ips: [string, string] = ['0.0.0.0', '127.0.0.1']
 
   /**
+   * The peer discovery channel.
+   *
+   * @see {@link Manager.discoveryFunction}
+   */
+  private peerChannel: discoveryChannel.Discovery
+
+  /**
+   * The status of peers discovered in channel
+   *
+   * Used to avoid unnecessarily fetching peer manifest:
+   *
+   *  - `false` = host+port is not a Sparkla peer
+   *  - `true` = host+port has already been added as a peer
+   */
+  protected peerStatus: { [key: string]: boolean } = {}
+
+  /**
    * The default `SoftwareSession` node.
    *
    * This default is merged with the `session` argument provided to the
@@ -141,13 +168,12 @@ export class Manager extends BaseExecutor {
 
   constructor(config: Config = new Config()) {
     super(
-      // No peer discovery functions are required at present. Instead, this
-      // class keeps track of `Session`s which it delegate to based on
-      // the `session` property of nodes.
-      [],
-      // No peers at present, so no need for client classe
-      [],
-      // Websocket server for receiving requests
+      // Custom discovery function to discover peer instances
+      [() => this.discoveryFunction()],
+      // WebSocket client for delegating requests to
+      // peers
+      [WebSocketClient],
+      // WebSocket server for receiving requests
       // from browser based clients (also provides HTTP endpoints)
       [new ManagerServer(config.host, config.port, config.jwtSecret)]
     )
@@ -179,16 +205,29 @@ export class Manager extends BaseExecutor {
    * configure,  startup intervals, etc
    */
   public async start(): Promise<void> {
-    const { expiryInterval, staleInterval } = this.config
+    const { host, expiryInterval, staleInterval } = this.config
 
     // Get IP addresses
     this.ips = [await globalIP(), localIP()]
+
+    // Start peer discovery if not listening on local loopback
+    if (host !== '127.0.0.1') await this.discover()
 
     // Begin checking for expired and stale sessions
     setInterval(() => this.endExpired(), expiryInterval * 1000)
     setInterval(() => this.removeStale(), staleInterval * 1000)
 
     return super.start()
+  }
+
+  /**
+   * @override Override of {@link BaseExecutor.stop} to
+   * leave the discovery channel (in addition to stopping server).
+   */
+  public async stop(): Promise<void> {
+    if (this.peerChannel !== undefined)
+      await new Promise(resolve => this.peerChannel.destroy(resolve))
+    return super.stop()
   }
 
   /**
@@ -226,6 +265,82 @@ export class Manager extends BaseExecutor {
    */
   public generateSessionName(): string {
     return moniker.choose()
+  }
+
+  /**
+   * A custom discovery function that sets up
+   * `peerChannel` and adds peers when they are discovered.
+   *
+   * This function does not actually return any manifests,
+   * instead, as peers are discovered, their manifests are fetched
+   * and added to `this.peers`.
+   */
+  protected discoveryFunction(): Promise<Manifest[]> {
+    const { port, peerSwarm } = this.config
+    if (peerSwarm === null) return Promise.resolve([])
+
+    const channel = (this.peerChannel = discoveryChannel())
+    channel.join(peerSwarm, port)
+    channel.on(
+      'peer',
+      async (
+        channelId: Buffer,
+        peer: { host: string; port: number },
+        type: 'dns' | 'dht'
+      ) => {
+        const { host, port } = peer
+        const url = `ws://${host}:${port}`
+
+        // Skip if already passed / failed this peer
+        if (this.peerStatus[url] !== undefined) return
+
+        // Do not connect to self
+        if (this.ips.includes(host)) {
+          const thisPort = new WebSocketAddress(this.addresses().ws).port
+          if (port === thisPort) {
+            this.peerStatus[url] = false
+            return
+          }
+        }
+
+        // Only add a peer if able to connect to it and get its manifest
+        // necessary to get its id. Client settings that avoid noisy logs
+        // and that fail quickly
+        const client = new WebSocketClient(url, undefined, {
+          logging: false,
+          timeout: 10,
+          retries: 0
+        })
+        let manifest
+        try {
+          manifest = await client.manifest()
+        } catch (error) {
+          log.warn(`Failed to get peer manifest: ${url}:  ${error.message}`)
+          this.peerStatus[url] = false
+          return
+        }
+
+        // Check that the peer is not already added (the 'peer' event can emit duplicates
+        // for the same peer, and a peer can have events for both it's local and global IPs
+        // e.g. 192.168.1.111 from multicast DNS, 103.233.21.109 from DHT)
+        const { id } = manifest
+        let add = id !== this.id // not self check again
+        if (add) {
+          for (const peer of this.peers) {
+            if (peer.manifest.id === id) {
+              add = false
+              break
+            }
+          }
+        }
+        if (add) {
+          log.info(`Peer discovered: ${type} ${host}:${port}`)
+          this.peers.push(new Peer(manifest, []))
+          this.peerStatus[url] = true
+        }
+      }
+    )
+    return Promise.resolve([])
   }
 
   public async begin<NodeType extends Node>(

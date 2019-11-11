@@ -65,4 +65,9 @@ export class Config {
    * Export stats for Prometheus?
    */
   prometheus = true
+
+  /**
+   * The name of the peer swarm to join.
+   */
+  peerSwarm: string | null = 'sparkla'
 }

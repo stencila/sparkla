@@ -67,6 +67,7 @@ sparkla --docker
 | stalePeriod     | Number of seconds that a stopped session is considered stale and will be removed from the list of sessions.              | number                         | 3600                 |
 | stats           | Collect statistics on session and system status?                                                                         | boolean                        | true                 |
 | prometheus      | Export stats for Prometheus?                                                                                             | boolean                        | true                 |
+| peerSwarm       | The name of the peer swarm to join.                                                                                      | string, null                   | "sparkla"            |
 
 <!-- OPTIONS-END -->
 <!-- prettier-ignore-end -->
