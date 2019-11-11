@@ -24,13 +24,11 @@ const props = clas.children.sort((a, b) =>
 const json = `{
 ${props
   .map(prop => {
-    const {
-      comment: { shortText },
-      name,
-      defaultValue
-    } = prop
-    const comment = shortText.trim().replace('\n', '\n  // ')
-    return `  // ${comment}\n  "${name}": ${defaultValue}`
+    const { comment, name, defaultValue } = prop
+    if (comment === undefined)
+      throw new Error(`No description for option: ${name}`)
+    const desc = comment.shortText.trim().replace('\n', '\n  // ')
+    return `  // ${desc}\n  "${name}": ${defaultValue}`
   })
   .join(',\n\n')}
 }`
