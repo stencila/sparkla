@@ -18,7 +18,8 @@ import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { ManagerServer } from './ManagerServer'
 import { Session } from './Session'
-import { optionalMin } from './util'
+import { optionalMin, localIP, globalIP } from './util'
+import { Config } from './Config'
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -99,41 +100,17 @@ export interface SessionInfo {
   dateLast: number
 }
 
-/**
- * Interval in milliseconds between checks
- * for expired sessions.
- */
-const expiryInterval = 15 * 1000
-
-/**
- * Number of seconds to provide clients with
- * a warning prior to reaching maximum session duration.
- */
-const durationWarning = 10 * 60
-
-/**
- * Number of seconds to provide clients with
- * a warning prior to a reaching session timeout.
- */
-const timeoutWarning = 60
-
-/**
- * Interval in milliseconds between checks
- * for stale sessions.
- */
-const staleInterval = 60 * 1000
-
-/**
- * Number of seconds that a stopped session is
- * considered stale and will be removed from the list of sessions.
- */
-const stalePeriod = 3600
-
 export class Manager extends BaseExecutor {
   /**
-   * The class of sessions (e.g. `FirecrackerSession`) created.
+   * Configuration options
    */
-  public readonly SessionType: SessionType
+  public readonly config: Config
+
+  /**
+   * Global and local IP addresses used for assigning
+   * session URIs.
+   */
+  private ips: [string, string] = ['0.0.0.0', '127.0.0.1']
 
   /**
    * The default `SoftwareSession` node.
@@ -162,7 +139,7 @@ export class Manager extends BaseExecutor {
    */
   public readonly sessions: { [key: string]: SessionInfo } = {}
 
-  constructor(sessionType: SessionType, host = '127.0.0.1', port = 9000) {
+  constructor(config: Config = new Config()) {
     super(
       // No peer discovery functions are required at present. Instead, this
       // class keeps track of `Session`s which it delegate to based on
@@ -172,14 +149,10 @@ export class Manager extends BaseExecutor {
       [],
       // Websocket server for receiving requests
       // from browser based clients (also provides HTTP endpoints)
-      [new ManagerServer(host, port)]
+      [new ManagerServer(config.host, config.port)]
     )
 
-    this.SessionType = sessionType
-
-    // Begin checking for expired and stale sessions
-    setInterval(() => this.endExpired(), expiryInterval)
-    setInterval(() => this.removeStale(), staleInterval)
+    this.config = config
   }
 
   /**
@@ -199,6 +172,124 @@ export class Manager extends BaseExecutor {
       begin: true,
       end: true
     })
+  }
+
+  /**
+   * @override Override of {@link BaseExecutor.start} to
+   * configure,  startup intervals, etc
+   */
+  public async start(): Promise<void> {
+    const { expiryInterval, staleInterval } = this.config
+
+    // Get IP addresses
+    this.ips = [await globalIP(), localIP()]
+
+    // Begin checking for expired and stale sessions
+    setInterval(() => this.endExpired(), expiryInterval * 1000)
+    setInterval(() => this.removeStale(), staleInterval * 1000)
+
+    return super.start()
+  }
+
+  /**
+   * Generate a unique URI for a session that allows for
+   * routing back to this manager instance.
+   */
+  public generateSessionId(): string {
+    const [globalIP, localIP] = this.ips
+    const port = this.config.port
+    const rand = crypto.randomBytes(32).toString('hex')
+    return `ws://${globalIP}/${localIP}/${port}/${rand}`
+  }
+
+  /**
+   * Parse a session id to extract the IP addresses of the
+   * host manager (so that connections can be routed through to it).
+   */
+  public parseSessionId(
+    id: string
+  ): {
+    scheme: string
+    globalIP: string
+    localIP: string
+    port: number
+  } | void {
+    const match = /^([a-z]{2,5}):\/\/([^/]+)\/([^/]+)\/([^/]+)/.exec(id)
+    if (match !== null) {
+      const [_, scheme, globalIP, localIP, port] = match
+      return { scheme, globalIP, localIP, port: parseInt(port) }
+    }
+  }
+
+  /**
+   * Generate a human-friendly name for a session.
+   */
+  public generateSessionName(): string {
+    return moniker.choose()
+  }
+
+  public async begin<NodeType extends Node>(
+    node: NodeType,
+    user: User = {}
+  ): Promise<NodeType> {
+    if (isA('SoftwareSession', node)) {
+      if (node.dateStart !== undefined) {
+        // Session has already begun, so just return the session unaltered
+        return node
+      } else {
+        // Session needs to be started...
+
+        // The requested session overrides the properties of the
+        // default session (or, to put it the other way around, the
+        // default fills in the missing properties of the requested)
+        // @ts-ignore TS2698: Spread types may only be created from object types
+        const sessionRequested = { ...this.sessionDefault, ...node }
+
+        // The `user.session` overrides the properties of the
+        // requested session. Usually `cpuLimit` etc are not in a request,
+        // but in case they are, we override them here.
+        const sessionPermitted = { ...sessionRequested, ...user.session }
+
+        let { id, name } = sessionPermitted
+
+        // Assign a identifier and name if necessary
+        if (id === undefined) id = this.generateSessionId()
+        if (name === undefined) name = this.generateSessionName()
+
+        // Record the client that started the session
+        const clientId = user.client !== undefined ? user.client.id : undefined
+
+        // Actually start the session and return the updated
+        // `SoftwareSession` node.
+        const instance =
+          this.config.sessionType === 'docker'
+            ? new DockerSession()
+            : new FirecrackerSession()
+        const dateStart = date(new Date().toISOString())
+        const begunSession = await instance.begin({
+          ...sessionPermitted,
+          id,
+          name,
+          dateStart,
+          status: 'started'
+        })
+
+        // Store and record it's addition
+        const now = Date.now() / 1000
+        this.sessions[id] = {
+          node: begunSession,
+          instance,
+          user,
+          clients: clientId !== undefined ? [clientId] : [],
+          dateStart: now,
+          dateLast: now
+        }
+        recordSessionsCount(this.sessions)
+
+        return begunSession as NodeType
+      }
+    }
+    return node
   }
 
   public async execute<NodeType extends Node>(
@@ -227,6 +318,7 @@ export class Manager extends BaseExecutor {
         // Client is requesting a session that has already ended
         // and been removed
         return {
+          // @ts-ignore TS2698: Spread types may only be created from object types
           ...node,
           errors: [
             codeError('error', {
@@ -245,6 +337,7 @@ export class Manager extends BaseExecutor {
       if (status === 'stopped') {
         let message = 'Session has ended.'
         if (typeof description === 'string') message += ' ' + description
+        // @ts-ignore TS2698: Spread types may only be created from object types
         return { ...node, errors: [codeError('error', { message })] }
       }
 
@@ -261,6 +354,7 @@ export class Manager extends BaseExecutor {
         )
         if (maxClients !== undefined && clients.length >= maxClients) {
           return {
+            // @ts-ignore TS2698: Spread types may only be created from object types
             ...node,
             errors: [
               codeError('error', {
@@ -291,70 +385,6 @@ export class Manager extends BaseExecutor {
     return node
   }
 
-  public async begin<NodeType extends Node>(
-    node: NodeType,
-    user: User = {}
-  ): Promise<NodeType> {
-    if (isA('SoftwareSession', node)) {
-      if (node.dateStart !== undefined) {
-        // Session has already begun, so just return the session unaltered
-        return node
-      } else {
-        // Session needs to be started...
-        const instance = new this.SessionType()
-
-        // The requested session overrides the properties of the
-        // default session (or, to put it the other way around, the
-        // default fills in the missing properties of the requested)
-        const sessionRequested = { ...this.sessionDefault, ...node }
-
-        // The `user.session` overrides the properties of the
-        // requested session. Usually `cpuLimit` etc are not in a request,
-        // but in case they are, we override them here.
-        const sessionPermitted = { ...sessionRequested, ...user.session }
-
-        let { id, name } = sessionPermitted
-
-        // Assign a unique, difficult to guess, identifier
-        // that allows routing back to the `Session` instance
-        // in the execute() method
-        if (id === undefined) id = crypto.randomBytes(32).toString('hex')
-
-        // Assign a human friendly name if necessary
-        if (name === undefined) name = moniker.choose()
-
-        // Record the client that started the session
-        const clientId = user.client !== undefined ? user.client.id : undefined
-
-        // Actually start the session and return the updated
-        // `SoftwareSession` node.
-        const dateStart = date(new Date().toISOString())
-        const begunSession = await instance.begin({
-          ...sessionPermitted,
-          id,
-          name,
-          dateStart,
-          status: 'started'
-        })
-
-        // Store and record it's addition
-        const now = Date.now() / 1000
-        this.sessions[id] = {
-          node: begunSession,
-          instance,
-          user,
-          clients: clientId !== undefined ? [clientId] : [],
-          dateStart: now,
-          dateLast: now
-        }
-        recordSessionsCount(this.sessions)
-
-        return begunSession as NodeType
-      }
-    }
-    return node
-  }
-
   /**
    * End a node (usually a `SoftwareSession`)
    *
@@ -363,6 +393,7 @@ export class Manager extends BaseExecutor {
    * @param notify Notify clients that the session will be ended?
    * @param reason The reason for ending the session
    */
+
   // eslint-disable-next-line @typescript-eslint/require-await
   public async end<NodeType extends Node>(
     node: NodeType,
@@ -395,6 +426,7 @@ export class Manager extends BaseExecutor {
 
       // End the session node and store it
       const endedSession = softwareSession({
+        // @ts-ignore TS2698: Spread types may only be created from object types
         ...node,
         dateEnd: date(new Date().toISOString()),
         status: 'stopped',
@@ -450,7 +482,11 @@ export class Manager extends BaseExecutor {
    * either of these.
    */
   protected endExpired(): void {
-    Object.entries(this.sessions).map(
+    const {
+      sessions,
+      config: { durationWarning, timeoutWarning }
+    } = this
+    Object.entries(sessions).map(
       ([sessionId, { node, dateStart, dateLast, clients }]) => {
         const {
           status,
@@ -519,9 +555,11 @@ export class Manager extends BaseExecutor {
    * cleanup when forcing shutdown of a manager.
    */
   public endAll(): Promise<void> {
-    if (this.SessionType === DockerSession) return DockerSession.endAll()
-    if (this.SessionType === FirecrackerSession)
-      return FirecrackerSession.endAll()
+    const {
+      config: { sessionType }
+    } = this
+    if (sessionType === 'docker') return DockerSession.endAll()
+    if (sessionType === 'firecracker') return FirecrackerSession.endAll()
     return Promise.resolve()
   }
 
@@ -533,15 +571,19 @@ export class Manager extends BaseExecutor {
    * so that the reason for closing can be reported to user).
    */
   protected removeStale(): void {
-    Object.entries(this.sessions).map(([sessionId, { node: { dateEnd } }]) => {
+    const {
+      sessions,
+      config: { stalePeriod }
+    } = this
+    Object.entries(sessions).map(([sessionId, { node: { dateEnd } }]) => {
       if (dateEnd !== undefined) {
         const now = Date.now()
         const date = new Date(isA('Date', dateEnd) ? dateEnd.value : dateEnd)
         const stale = (now - date.valueOf()) / 1000
         if (stale > stalePeriod) {
           // Delete and record it's removal
-          delete this.sessions[sessionId]
-          recordSessionsCount(this.sessions)
+          delete sessions[sessionId]
+          recordSessionsCount(sessions)
         }
       }
     })
