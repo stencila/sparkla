@@ -1,3 +1,11 @@
+# [0.8.0](https://github.com/stencila/sparkla/compare/v0.7.0...v0.8.0) (2019-11-11)
+
+
+### Features
+
+* **Configuration:** Configure from files, env vars or argv ([96757b0](https://github.com/stencila/sparkla/commit/96757b0fc91f4332ffacff782bf399cbbf5fef0c))
+* **Routable session ids:** Change session ids so that they can be routed ([eb4150b](https://github.com/stencila/sparkla/commit/eb4150b96fa2ee6b8bfa877552b4a180261af470))
+
 # [0.7.0](https://github.com/stencila/sparkla/compare/v0.6.0...v0.7.0) (2019-11-07)
 
 
