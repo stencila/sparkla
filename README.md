@@ -58,6 +58,7 @@ sparkla --docker
 | debug           | Output debug level log entries?                                                                                          | boolean                        | false                |
 | host            | The host address that the server should listen on.                                                                       | string                         | "127.0.0.1"          |
 | port            | The port that the server should listen on.                                                                               | number                         | 9000                 |
+| jwtSecret       | The JWT secret to use to sign and verify JWT tokens.                                                                     | string, null                   |  null                |
 | sessionType     | The class of sessions created.                                                                                           | "firecracker", "docker"        | "docker"             |
 | expiryInterval  | Interval in seconds between checks for expired sessions.                                                                 | number                         | 15                   |
 | durationWarning | Number of seconds to provide clients with a warning prior to reaching maximum session duration.                          | number                         | 600                  |

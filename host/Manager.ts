@@ -149,7 +149,7 @@ export class Manager extends BaseExecutor {
       [],
       // Websocket server for receiving requests
       // from browser based clients (also provides HTTP endpoints)
-      [new ManagerServer(config.host, config.port)]
+      [new ManagerServer(config.host, config.port, config.jwtSecret)]
     )
 
     this.config = config

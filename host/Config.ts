@@ -17,6 +17,11 @@ export class Config {
   port = 9000
 
   /**
+   * The JWT secret to use to sign and verify JWT tokens.
+   */
+  jwtSecret: string | null = null
+
+  /**
    * The class of sessions created.
    */
   sessionType: 'firecracker' | 'docker' = 'docker'

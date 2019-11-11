@@ -8,6 +8,9 @@
   // The port that the server should listen on.
   "port": 9000,
 
+  // The JWT secret to use to sign and verify JWT tokens.
+  "jwtSecret":  null,
+
   // The class of sessions created.
   "sessionType": "docker",
 

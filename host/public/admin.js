@@ -26,12 +26,12 @@ class ManagerClient extends WebSocketClient {
   }
 }
 
-const token = new URLSearchParams(window.location.search).get('token')
+const jwt = new URLSearchParams(window.location.search).get('jwt')
 
 const executor = new ManagerClient({
   host: window.location.hostname,
   port: window.location.port,
-  jwt: token
+  jwt
 })
 
 /**
@@ -42,7 +42,7 @@ async function listSessions() {
   const response = await fetch('/admin', {
     headers: {
       Accept: 'application/json; charset=utf-8',
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${jwt}`
     }
   })
   const sessions = await response.json()
@@ -186,7 +186,9 @@ function selectSession(sessionInfo) {
   // Attach the session to the code chunk component
   selectedElem.querySelector(
     'stencila-code-chunk'
-  ).executeHandler = codeChunk => {
-    return executor.execute(codeChunk, sessionNode)
+  ).executeHandler = async codeChunk => {
+    const result = await executor.execute(codeChunk, sessionNode)
+    console.log('Executed', result)
+    return result
   }
 }
