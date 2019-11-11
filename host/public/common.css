@@ -16,7 +16,8 @@ h1, h2, h3, h4 {
 
 #begin,
 #selected,
-#sessions {
+#sessions,
+#peers {
   position: relative;
   margin-top: 1em;
   border: 1px solid var(--color-neutral-300);
@@ -31,7 +32,8 @@ h1, h2, h3, h4 {
   padding: 1em;
 }
 
-.session {
+.session,
+.peer {
   position: relative;
   border: 1px solid var(--color-neutral-300);
   border-radius: 5px;

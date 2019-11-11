@@ -703,4 +703,41 @@ export class Manager extends BaseExecutor {
       }
     })
   }
+
+  /**
+   * Generate info to be displayed on admin page.
+   */
+  public info (): any {
+    const { sessions, peers } = this
+    const sessionReprs = Object.entries(sessions).reduce(
+      (prev, [sessionId, sessionInfo]) => {
+        const {
+          node,
+          user,
+          clients,
+          instance,
+          dateStart,
+          dateLast
+        } = sessionInfo
+        return {
+          ...prev,
+          ...{
+            [sessionId]: {
+              node,
+              user,
+              clients,
+              dateStart,
+              dateLast,
+              instance: instance.repr()
+            }
+          }
+        }
+      },
+      {}
+    )
+    return {
+      sessions: sessionReprs,
+      peers
+    }
+  }
 }
