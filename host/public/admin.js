@@ -114,7 +114,7 @@ function listSessions(sessions) {
 
     item.querySelector('.select').onclick = () => selectSession(sessionInfo)
     item.querySelector('.client').onclick = () =>
-      window.open(`/public/client.html?session=${id}&token=${token}`, '_blank')
+      window.open(`/public/client.html?session=${id}&jwt=${jwt}`, '_blank')
     item.querySelector('.end').onclick = () => endSession(node)
 
     list.appendChild(item)
