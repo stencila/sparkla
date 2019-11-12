@@ -41,9 +41,37 @@ async function update() {
       Authorization: `Bearer ${jwt}`
     }
   })
-  const { sessions, peers } = await response.json()
+  const { manifest, sessions, peers } = await response.json()
+  showInstance(manifest)
   listSessions(sessions)
   listPeers(peers)
+}
+
+/**
+ * Show details of teh instance
+ */
+const instance = elem(
+  `<div id="instance">
+    <h3>Instance</h3>
+    <stencila-action-menu>
+      <stencila-button class="refresh" size="xsmall" icon="refresh-ccw" icon-only></stencila-button>
+    </stencila-action-menu>
+    <p class="id"></p>
+    <details>
+      <summary>Manifest</summary>
+      <pre><code class="json"></code></pre>
+    </details>
+  </div>`
+)
+document.body.appendChild(instance)
+instance.querySelector('.refresh').onclick = () => update()
+function showInstance(manifest) {
+  instance.querySelector('.id').innerHTML = manifest.id
+  instance.querySelector('.json').innerHTML = JSON.stringify(
+    manifest,
+    null,
+    '  '
+  )
 }
 
 /**
@@ -117,7 +145,10 @@ function listPeers(peers) {
 
   for (const peer of peers) {
     const { manifest } = peer
-    const { id, addresses: {ws = {}} } = manifest
+    const {
+      id,
+      addresses: { ws = {} }
+    } = manifest
     const item = elem(
       `<div class="peer" id="${id}">
         <code>${id}</code> ${ws.host}:${ws.port}
@@ -126,7 +157,6 @@ function listPeers(peers) {
     list.appendChild(item)
   }
 }
-
 
 /**
  * Start with update and repeat every x seconds
@@ -159,7 +189,7 @@ const defaultSession = {
 async function beginSession(session) {
   session = await executor.begin(session)
   console.log('Began', session)
-  listSessions()
+  update()
 }
 
 /**
@@ -191,7 +221,7 @@ document.body.appendChild(beginElem)
 async function endSession(sessionNode) {
   sessionNode = await executor.end(sessionNode)
   console.log('Ended', sessionNode)
-  listSessions()
+  update()
 }
 
 /**

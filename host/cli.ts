@@ -91,5 +91,5 @@ async function serve() {
 
   // Create and start manager
   const manager = new Manager(config)
-  await manager.start()
+  await manager.run()
 }
