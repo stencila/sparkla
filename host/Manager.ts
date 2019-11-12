@@ -6,7 +6,6 @@ import {
   Method,
   uid,
   User,
-  WebSocketAddress,
   WebSocketClient
 } from '@stencila/executa'
 import { Peer } from '@stencila/executa/dist/lib/base/BaseExecutor'
@@ -203,7 +202,7 @@ export class Manager extends BaseExecutor {
     // Get the total resources available
     let { cpuTotal, memoryTotal } = this.config
     if (cpuTotal === null) {
-      cpuTotal = await osu.cpu.count()
+      cpuTotal = osu.cpu.count()
     }
     if (memoryTotal === null) {
       const memInfo = await osu.mem.info()
@@ -308,7 +307,7 @@ export class Manager extends BaseExecutor {
     return {
       id: this.id,
       capabilities: await this.capabilities(),
-      addresses: await this.addresses(),
+      addresses: this.addresses(),
       package: { name, version }
     }
   }
@@ -375,7 +374,10 @@ export class Manager extends BaseExecutor {
         if (this.peerStatus[url] !== undefined) return
 
         // Do not connect to self
-        if ([this.globalIP, this.localIP].includes(host) && this.port === port) {
+        if (
+          [this.globalIP, this.localIP].includes(host) &&
+          this.port === port
+        ) {
           this.peerStatus[url] = false
           return
         }
@@ -417,15 +419,18 @@ export class Manager extends BaseExecutor {
           if (addresses !== undefined) {
             manifest = {
               ...manifest,
-              addresses: Object.entries(addresses).reduce((prev, [key, address]) => {
-                return {...prev, ...{[key]: {...address, host}}}
-              }, {})
+              addresses: Object.entries(addresses).reduce(
+                (prev, [key, address]) => {
+                  return { ...prev, ...{ [key]: { ...address, host } } }
+                },
+                {}
+              )
             }
           }
           this.peers.push(new Peer(manifest, [WebSocketClient]))
           this.peerStatus[url] = true
-        } else  {
-          client.stop()
+        } else {
+          await client.stop()
         }
       }
     )
@@ -475,7 +480,11 @@ export class Manager extends BaseExecutor {
             // Unable to delegate so return the node with its
             // limits and status updated
             if (this.peers.length > 0)
-              log.warn(`Unable to delegate session begin to peers: ${JSON.stringify(sessionPermitted)}`)
+              log.warn(
+                `Unable to delegate session begin to peers: ${JSON.stringify(
+                  sessionPermitted
+                )}`
+              )
             const sessionRejected: SoftwareSession = {
               ...sessionPermitted,
               id,
@@ -570,8 +579,12 @@ export class Manager extends BaseExecutor {
             ]
           }
         }
-        const {globalIP, localIP, port} = location
-        if (globalIP === this.globalIP && localIP === this.localIP && port === this.port) {
+        const { globalIP, localIP, port } = location
+        if (
+          globalIP === this.globalIP &&
+          localIP === this.localIP &&
+          port === this.port
+        ) {
           // Attempting to access an old session
           return {
             // @ts-ignore TS2698: Spread types may only be created from object types
@@ -587,7 +600,7 @@ export class Manager extends BaseExecutor {
         // be in the peer list.
         // TODO: pass user info as JWT to other instance
         // TODO: use a LRU cache or similar to avoid recreating WebSocketClients
-        const client = new WebSocketClient({host: localIP, port})
+        const client = new WebSocketClient({ host: localIP, port })
         return client.execute(node, session)
       }
 
