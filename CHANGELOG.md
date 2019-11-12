@@ -1,3 +1,20 @@
+# [0.10.0](https://github.com/stencila/sparkla/compare/v0.9.0...v0.10.0) (2019-11-12)
+
+
+### Bug Fixes
+
+* **Admin:** Fix JWT token query param ([0ce9648](https://github.com/stencila/sparkla/commit/0ce964868f41896f80abd18e90943af4cec56522))
+* **CLI:** Add help command ([576557b](https://github.com/stencila/sparkla/commit/576557b283e4477bc30c2d49a2b82567558db601))
+* **Package:** Update Executa ([74917f9](https://github.com/stencila/sparkla/commit/74917f9e88b757f53862b12b30743fbe5741f4e4))
+
+
+### Features
+
+* **admin page:** Add peer list to admin page ([e4359f2](https://github.com/stencila/sparkla/commit/e4359f268b709c0c55b5f4dd5fa8163b338b903f))
+* **Manager:**  Pass requests through to other instances ([a0d3787](https://github.com/stencila/sparkla/commit/a0d3787d6cbe21810fe99534651fa1ba3826a702))
+* **Manager:** Keep track of allocatable resources ([48ae2e9](https://github.com/stencila/sparkla/commit/48ae2e9cc71bd02aac831503d9021f1aeee01af7))
+* **Peers:** Add discovery of peers ([53ef8b3](https://github.com/stencila/sparkla/commit/53ef8b3e797a421f182c207cb37b29f364f2020a))
+
 # [0.9.0](https://github.com/stencila/sparkla/compare/v0.8.0...v0.9.0) (2019-11-11)
 
 
