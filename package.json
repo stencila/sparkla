@@ -41,8 +41,9 @@
   "dependencies": {
     "@opencensus/core": "0.0.18",
     "@opencensus/exporter-prometheus": "0.0.18",
-    "@stencila/executa": "^0.13.0",
+    "@stencila/executa": "^0.14.0",
     "@stencila/logga": "^1.4.1",
+    "discovery-channel": "^5.5.1",
     "dockerode": "^3.0.2",
     "external-ip": "^2.1.1",
     "fastify-static": "^2.5.0",

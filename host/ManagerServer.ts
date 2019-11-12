@@ -42,7 +42,10 @@ export class ManagerServer extends WebSocketServer {
     // Add admin page endpoint
     app.get(
       '/admin',
-      (request: FastifyRequest, reply: FastifyReply<any>): void => {
+      async (
+        request: FastifyRequest,
+        reply: FastifyReply<any>
+      ): Promise<void> => {
         // @ts-ignore that user does not exist on request
         const user = request.user
 
@@ -56,34 +59,8 @@ export class ManagerServer extends WebSocketServer {
 
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         if (request.headers.accept.includes('application/json')) {
-          const { sessions } = this.executor as Manager
-          const sessionReprs = Object.entries(sessions).reduce(
-            (prev, [sessionId, sessionInfo]) => {
-              const {
-                node,
-                user,
-                clients,
-                instance,
-                dateStart,
-                dateLast
-              } = sessionInfo
-              return {
-                ...prev,
-                ...{
-                  [sessionId]: {
-                    node,
-                    user,
-                    clients,
-                    dateStart,
-                    dateLast,
-                    instance: instance.repr()
-                  }
-                }
-              }
-            },
-            {}
-          )
-          reply.send(sessionReprs)
+          const manager = this.executor as Manager
+          reply.send(await manager.info())
         } else reply.sendFile('admin.html')
       }
     )

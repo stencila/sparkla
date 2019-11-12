@@ -34,31 +34,63 @@ const executor = new ManagerClient({
   jwt
 })
 
-/**
- * List all sessions with details and buttons to
- * end and execute code in them
- */
-async function listSessions() {
+async function update() {
   const response = await fetch('/admin', {
     headers: {
       Accept: 'application/json; charset=utf-8',
       Authorization: `Bearer ${jwt}`
     }
   })
-  const sessions = await response.json()
+  const { manifest, sessions, peers } = await response.json()
+  showInstance(manifest)
+  listSessions(sessions)
+  listPeers(peers)
+}
 
+/**
+ * Show details of teh instance
+ */
+const instance = elem(
+  `<div id="instance">
+    <h3>Instance</h3>
+    <stencila-action-menu>
+      <stencila-button class="refresh" size="xsmall" icon="refresh-ccw" icon-only></stencila-button>
+    </stencila-action-menu>
+    <p class="id"></p>
+    <details>
+      <summary>Manifest</summary>
+      <pre><code class="json"></code></pre>
+    </details>
+  </div>`
+)
+document.body.appendChild(instance)
+instance.querySelector('.refresh').onclick = () => update()
+function showInstance(manifest) {
+  instance.querySelector('.id').innerHTML = manifest.id
+  instance.querySelector('.json').innerHTML = JSON.stringify(
+    manifest,
+    null,
+    '  '
+  )
+}
+
+/**
+ * List all sessions with details and buttons to
+ * end and execute code in them
+ */
+function listSessions(sessions) {
   let list = document.querySelector('#sessions .list')
   if (!list) {
     const sessions = elem(
       `<div id="sessions">
-        <h3>Current sessions</h3>
+        <h3>Sessions</h3>
         <stencila-action-menu>
           <stencila-button class="refresh" size="xsmall" icon="refresh-ccw" icon-only></stencila-button>
         </stencila-action-menu>
         <div class="list"></div>
       </div>`
     )
-    sessions.querySelector('.refresh').onclick = () => listSessions()
+    sessions.querySelector('.refresh').onclick = () => update()
     list = sessions.querySelector('#sessions .list')
     document.body.appendChild(sessions)
   } else {
@@ -82,7 +114,7 @@ async function listSessions() {
 
     item.querySelector('.select').onclick = () => selectSession(sessionInfo)
     item.querySelector('.client').onclick = () =>
-      window.open(`/public/client.html?session=${id}&token=${token}`, '_blank')
+      window.open(`/public/client.html?session=${id}&jwt=${jwt}`, '_blank')
     item.querySelector('.end').onclick = () => endSession(node)
 
     list.appendChild(item)
@@ -90,10 +122,47 @@ async function listSessions() {
 }
 
 /**
- * Start by listing sessions
+ * List peers
  */
-listSessions()
-setInterval(listSessions, 15 * 1000)
+function listPeers(peers) {
+  let list = document.querySelector('#peers .list')
+  if (!list) {
+    const peers = elem(
+      `<div id="peers">
+        <h3>Peers</h3>
+        <stencila-action-menu>
+          <stencila-button class="refresh" size="xsmall" icon="refresh-ccw" icon-only></stencila-button>
+        </stencila-action-menu>
+        <div class="list"></div>
+      </div>`
+    )
+    peers.querySelector('.refresh').onclick = () => update()
+    list = peers.querySelector('#peers .list')
+    document.body.appendChild(peers)
+  } else {
+    while (list.firstChild) list.removeChild(list.firstChild)
+  }
+
+  for (const peer of peers) {
+    const { manifest } = peer
+    const {
+      id,
+      addresses: { ws = {} }
+    } = manifest
+    const item = elem(
+      `<div class="peer" id="${id}">
+        <code>${id}</code> ${ws.host}:${ws.port}
+      </div>`
+    )
+    list.appendChild(item)
+  }
+}
+
+/**
+ * Start with update and repeat every x seconds
+ */
+update()
+setInterval(update, 15 * 1000)
 
 /**
  * Default session to start (can be edited by admin user)
@@ -120,7 +189,7 @@ const defaultSession = {
 async function beginSession(session) {
   session = await executor.begin(session)
   console.log('Began', session)
-  listSessions()
+  update()
 }
 
 /**
@@ -152,7 +221,7 @@ document.body.appendChild(beginElem)
 async function endSession(sessionNode) {
   sessionNode = await executor.end(sessionNode)
   console.log('Ended', sessionNode)
-  listSessions()
+  update()
 }
 
 /**

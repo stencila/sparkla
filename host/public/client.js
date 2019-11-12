@@ -7,7 +7,7 @@ const { WebSocketClient } = executa
 const { replaceHandlers } = logga
 
 const session = new URLSearchParams(window.location.search).get('session')
-const jwt = new URLSearchParams(window.location.search).get('token')
+const jwt = new URLSearchParams(window.location.search).get('jwt')
 
 const client = new WebSocketClient({
   host: window.location.hostname,

@@ -1,5 +1,3 @@
-import { PrometheusStatsExporter } from '@opencensus/exporter-prometheus'
-
 export class Config {
   /**
    * Output debug level log entries?
@@ -18,6 +16,7 @@ export class Config {
 
   /**
    * The JWT secret to use to sign and verify JWT tokens.
+   * If `null` then a random secret will be generated.
    */
   jwtSecret: string | null = null
 
@@ -25,6 +24,18 @@ export class Config {
    * The class of sessions created.
    */
   sessionType: 'firecracker' | 'docker' = 'docker'
+
+  /**
+   * The total number of CPUs that can be allocated to sessions.
+   * `null` = use the number of CPUs on the machine.
+   */
+  cpuTotal: number | null = null
+
+  /**
+   * The total number amount of memory (Gib) that can be allocated to sessions.
+   * `null` = use the total amount of memory on the machine.
+   */
+  memoryTotal: number | null = null
 
   /**
    * Interval in seconds between checks
@@ -65,4 +76,9 @@ export class Config {
    * Export stats for Prometheus?
    */
   prometheus = true
+
+  /**
+   * The name of the peer swarm to join.
+   */
+  peerSwarm: string | null = 'sparkla'
 }

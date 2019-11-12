@@ -30,6 +30,7 @@ Usage:
 Commands:
   serve           Start the Sparkla web socket server (default)
   config          Show the configuration that has been loaded
+  help            Show this message
 
 Options:
   --debug         Output debug level log entries?
@@ -63,6 +64,7 @@ commands.map((command: string) => {
       return showConfig()
     case 'serve':
       return serve()
+    case 'help':
     default:
       console.error(usage)
   }
@@ -91,5 +93,5 @@ async function serve() {
 
   // Create and start manager
   const manager = new Manager(config)
-  await manager.start()
+  await manager.run()
 }

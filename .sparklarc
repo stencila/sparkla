@@ -9,10 +9,19 @@
   "port": 9000,
 
   // The JWT secret to use to sign and verify JWT tokens.
+  // If `null` then a random secret will be generated.
   "jwtSecret":  null,
 
   // The class of sessions created.
   "sessionType": "docker",
+
+  // The total number of CPUs that can be allocated to sessions.
+  // `null` = use the number of CPUs on the machine.
+  "cpuTotal":  null,
+
+  // The total number amount of memory (Gib) that can be allocated to sessions.
+  // `null` = use the total amount of memory on the machine.
+  "memoryTotal":  null,
 
   // Interval in seconds between checks
   // for expired sessions.
@@ -38,5 +47,8 @@
   "stats": true,
 
   // Export stats for Prometheus?
-  "prometheus": true
+  "prometheus": true,
+
+  // The name of the peer swarm to join.
+  "peerSwarm": "sparkla"
 }

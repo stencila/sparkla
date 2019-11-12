@@ -1,25 +1,38 @@
 import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
-import { BaseExecutor, Capabilities, User } from '@stencila/executa'
+import {
+  BaseExecutor,
+  Capabilities,
+  Manifest,
+  Method,
+  uid,
+  User,
+  WebSocketClient
+} from '@stencila/executa'
+import { Peer } from '@stencila/executa/dist/lib/base/BaseExecutor'
 import { getLogger } from '@stencila/logga'
 import {
+  codeError,
   date,
   isA,
   Node,
   softwareEnvironment,
   SoftwareSession,
-  softwareSession,
-  codeError
+  softwareSession
 } from '@stencila/schema'
-import crypto from 'crypto'
+// @ts-ignore
+import discoveryChannel from 'discovery-channel'
+import { JSONSchema7Definition } from 'json-schema'
 // @ts-ignore
 import moniker from 'moniker'
+import osu from 'node-os-utils'
 import { performance } from 'perf_hooks'
+import pkg from '../package.json'
+import { Config } from './Config'
 import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { ManagerServer } from './ManagerServer'
 import { Session } from './Session'
-import { optionalMin, localIP, globalIP } from './util'
-import { Config } from './Config'
+import { globalIP, localIP, optionalMin } from './util'
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
@@ -73,7 +86,7 @@ export interface SessionInfo {
   /**
    * The session instance.
    */
-  instance: Session
+  instance?: Session
 
   /**
    * The user that began this session.
@@ -107,10 +120,31 @@ export class Manager extends BaseExecutor {
   public readonly config: Config
 
   /**
-   * Global and local IP addresses used for assigning
-   * session URIs.
+   * Global IP address.
    */
-  private ips: [string, string] = ['0.0.0.0', '127.0.0.1']
+  private globalIP = '0.0.0.0'
+
+  /**
+   * Local IP address.
+   */
+  private localIP = '127.0.0.1'
+
+  /**
+   * The peer discovery channel.
+   *
+   * @see {@link Manager.discoveryFunction}
+   */
+  private peerChannel: discoveryChannel.Discovery
+
+  /**
+   * The status of peers discovered in channel
+   *
+   * Used to avoid unnecessarily fetching peer manifest:
+   *
+   *  - `false` = host+port is not a Sparkla peer
+   *  - `true` = host+port has already been added as a peer
+   */
+  protected peerStatus: { [key: string]: boolean } = {}
 
   /**
    * The default `SoftwareSession` node.
@@ -141,13 +175,11 @@ export class Manager extends BaseExecutor {
 
   constructor(config: Config = new Config()) {
     super(
-      // No peer discovery functions are required at present. Instead, this
-      // class keeps track of `Session`s which it delegate to based on
-      // the `session` property of nodes.
-      [],
-      // No peers at present, so no need for client classe
-      [],
-      // Websocket server for receiving requests
+      // Custom discovery function to discover peer instances
+      [() => this.discoveryFunction()],
+      // WebSocket client for delegating requests to peers
+      [WebSocketClient],
+      // WebSocket server for receiving requests
       // from browser based clients (also provides HTTP endpoints)
       [new ManagerServer(config.host, config.port, config.jwtSecret)]
     )
@@ -155,40 +187,129 @@ export class Manager extends BaseExecutor {
     this.config = config
   }
 
+  get port(): number {
+    return this.config.port
+  }
+
   /**
-   * Declaration of capabilities.
-   *
-   * At present, just declare that capable of all methods
-   * since actual capabilities will be determined by
-   * sessions delegated to.
+   * Calculate the amount of compute resource that
+   * can be allocated to new sessions.
    */
-  public capabilities(): Promise<Capabilities> {
+  public async allocatableResources(): Promise<{
+    cpu: number
+    memory: number
+  }> {
+    // Get the total resources available
+    let { cpuTotal, memoryTotal } = this.config
+    if (cpuTotal === null) {
+      cpuTotal = osu.cpu.count()
+    }
+    if (memoryTotal === null) {
+      const memInfo = await osu.mem.info()
+      memoryTotal = memInfo.totalMemMb / 1024
+    }
+
+    // Minus resources already allocated to sessions
+    // that are still running
+    for (const sessionInfo of Object.values(this.sessions)) {
+      const { node } = sessionInfo
+      if (!(node.status === 'starting' || node.status === 'started')) continue
+
+      const { cpuRequest, cpuLimit } = node
+      const cpu = optionalMin(cpuRequest, cpuLimit)
+      if (cpu !== undefined) {
+        cpuTotal -= cpu
+      }
+
+      const { memoryRequest, memoryLimit } = node
+      const memory = optionalMin(memoryRequest, memoryLimit)
+      if (memory !== undefined) {
+        memoryTotal -= memory
+      }
+    }
+    return {
+      cpu: cpuTotal,
+      memory: memoryTotal
+    }
+  }
+
+  /**
+   * Are there enough allocatable resources to start a session?
+   *
+   * @param session
+   */
+  public async enoughResources(session: SoftwareSession): Promise<boolean> {
+    const { cpuRequest, cpuLimit, memoryRequest, memoryLimit } = session
+    const allocatable = await this.allocatableResources()
+
+    const cpu = optionalMin(cpuRequest, cpuLimit)
+    if (cpu !== undefined && cpu > allocatable.cpu) {
+      return false
+    }
+
+    const memory = optionalMin(memoryRequest, memoryLimit)
+    if (memory !== undefined && memory > allocatable.memory) {
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * @override Override of {@link BaseExecutor.capabilities} to
+   * be able to dynamically declare capabilities based
+   * on resources available.
+   */
+  public async capabilities(): Promise<Capabilities> {
+    // Get the allocatable resources
+    const { cpu, memory } = await this.allocatableResources()
+
+    // Create a schema definition with those resources
+    // as maximum
+    const begin: JSONSchema7Definition = {
+      properties: {
+        node: {
+          properties: {
+            type: {
+              const: 'SoftwareSession'
+            },
+            cpuRequest: {
+              type: 'number',
+              maximum: cpu
+            },
+            memoryRequest: {
+              type: 'number',
+              maximum: memory
+            }
+          }
+        }
+      },
+      required: ['node']
+    }
+
     return Promise.resolve({
       decode: true,
       encode: true,
       compile: true,
       build: true,
       execute: true,
-      begin: true,
+      begin,
       end: true
     })
   }
 
   /**
-   * @override Override of {@link BaseExecutor.start} to
-   * configure,  startup intervals, etc
+   * @override Override of {@link BaseExecutor.manifest} to
+   * add package version information
    */
-  public async start(): Promise<void> {
-    const { expiryInterval, staleInterval } = this.config
-
-    // Get IP addresses
-    this.ips = [await globalIP(), localIP()]
-
-    // Begin checking for expired and stale sessions
-    setInterval(() => this.endExpired(), expiryInterval * 1000)
-    setInterval(() => this.removeStale(), staleInterval * 1000)
-
-    return super.start()
+  async manifest(): Promise<Manifest> {
+    const { name, version } = pkg
+    return {
+      id: this.id,
+      capabilities: await this.capabilities(),
+      addresses: this.addresses(),
+      package: { name, version }
+    }
   }
 
   /**
@@ -196,10 +317,7 @@ export class Manager extends BaseExecutor {
    * routing back to this manager instance.
    */
   public generateSessionId(): string {
-    const [globalIP, localIP] = this.ips
-    const port = this.config.port
-    const rand = crypto.randomBytes(32).toString('hex')
-    return `ws://${globalIP}/${localIP}/${port}/${rand}`
+    return `ws://${this.globalIP}/${this.localIP}/${this.port}/${uid()}`
   }
 
   /**
@@ -228,6 +346,97 @@ export class Manager extends BaseExecutor {
     return moniker.choose()
   }
 
+  /**
+   * A custom discovery function that sets up
+   * `peerChannel` and adds peers when they are discovered.
+   *
+   * This function does not actually return any manifests,
+   * instead, as peers are discovered, their manifests are fetched
+   * and added to `this.peers`.
+   */
+  protected discoveryFunction(): Promise<Manifest[]> {
+    const { port, peerSwarm } = this.config
+    if (peerSwarm === null) return Promise.resolve([])
+
+    const channel = (this.peerChannel = discoveryChannel())
+    channel.join(peerSwarm, port)
+    channel.on(
+      'peer',
+      async (
+        channelId: Buffer,
+        peer: { host: string; port: number },
+        type: 'dns' | 'dht'
+      ) => {
+        const { host, port } = peer
+        const url = `ws://${host}:${port}`
+
+        // Skip if already passed / failed this peer
+        if (this.peerStatus[url] !== undefined) return
+
+        // Do not connect to self
+        if (
+          [this.globalIP, this.localIP].includes(host) &&
+          this.port === port
+        ) {
+          this.peerStatus[url] = false
+          return
+        }
+
+        // Only add a peer if able to connect to it and get its manifest
+        // necessary to get its id. Client settings that avoid noisy logs
+        // and that fail quickly
+        const client = new WebSocketClient(url, undefined, {
+          logging: false,
+          timeout: 10,
+          retries: 0
+        })
+        let manifest
+        try {
+          manifest = await client.manifest()
+        } catch (error) {
+          log.warn(`Failed to get peer manifest: ${url}:  ${error.message}`)
+          this.peerStatus[url] = false
+          return
+        }
+
+        // Check that the peer is not already added (the 'peer' event can emit duplicates
+        // for the same peer, and a peer can have events for both it's local and global IPs
+        // e.g. 192.168.1.111 from multicast DNS, 103.233.21.109 from DHT)
+        const { id, addresses } = manifest
+        let add = id !== this.id // not self check again
+        if (add) {
+          for (const peer of this.peers) {
+            if (peer.manifest.id === id) {
+              add = false
+              break
+            }
+          }
+        }
+        if (add) {
+          log.info(`Peer discovered: ${type} ${host}:${port}`)
+          // Substitute all host IPs amongst the peers addresses
+          // (e.g. 0.0.0.0) with the actual host IP that was discovered
+          if (addresses !== undefined) {
+            manifest = {
+              ...manifest,
+              addresses: Object.entries(addresses).reduce(
+                (prev, [key, address]) => {
+                  return { ...prev, ...{ [key]: { ...address, host } } }
+                },
+                {}
+              )
+            }
+          }
+          this.peers.push(new Peer(manifest, [WebSocketClient]))
+          this.peerStatus[url] = true
+        } else {
+          await client.stop()
+        }
+      }
+    )
+    return Promise.resolve([])
+  }
+
   public async begin<NodeType extends Node>(
     node: NodeType,
     user: User = {}
@@ -236,58 +445,96 @@ export class Manager extends BaseExecutor {
       if (node.dateStart !== undefined) {
         // Session has already begun, so just return the session unaltered
         return node
-      } else {
-        // Session needs to be started...
-
-        // The requested session overrides the properties of the
-        // default session (or, to put it the other way around, the
-        // default fills in the missing properties of the requested)
-        // @ts-ignore TS2698: Spread types may only be created from object types
-        const sessionRequested = { ...this.sessionDefault, ...node }
-
-        // The `user.session` overrides the properties of the
-        // requested session. Usually `cpuLimit` etc are not in a request,
-        // but in case they are, we override them here.
-        const sessionPermitted = { ...sessionRequested, ...user.session }
-
-        let { id, name } = sessionPermitted
-
-        // Assign a identifier and name if necessary
-        if (id === undefined) id = this.generateSessionId()
-        if (name === undefined) name = this.generateSessionName()
-
-        // Record the client that started the session
-        const clientId = user.client !== undefined ? user.client.id : undefined
-
-        // Actually start the session and return the updated
-        // `SoftwareSession` node.
-        const instance =
-          this.config.sessionType === 'docker'
-            ? new DockerSession()
-            : new FirecrackerSession()
-        const dateStart = date(new Date().toISOString())
-        const begunSession = await instance.begin({
-          ...sessionPermitted,
-          id,
-          name,
-          dateStart,
-          status: 'started'
-        })
-
-        // Store and record it's addition
-        const now = Date.now() / 1000
-        this.sessions[id] = {
-          node: begunSession,
-          instance,
-          user,
-          clients: clientId !== undefined ? [clientId] : [],
-          dateStart: now,
-          dateLast: now
-        }
-        recordSessionsCount(this.sessions)
-
-        return begunSession as NodeType
       }
+
+      // Session needs to be started...
+
+      // The requested session overrides the properties of the
+      // default session (or, to put it the other way around, the
+      // default fills in the missing properties of the requested)
+      // @ts-ignore TS2698: Spread types may only be created from object types
+      const sessionRequested = { ...this.sessionDefault, ...node }
+
+      // The `user.session` overrides the properties of the
+      // requested session. Usually `cpuLimit` etc are not in a request,
+      // but in case they are, we override them here.
+      const sessionPermitted = { ...sessionRequested, ...user.session }
+
+      let { id, name } = sessionPermitted
+
+      // Assign a identifier and name if necessary
+      if (id === undefined) id = this.generateSessionId()
+      if (name === undefined) name = this.generateSessionName()
+
+      // Record the client that started the session
+      const clientId = user.client !== undefined ? user.client.id : undefined
+      const clients = clientId !== undefined ? [clientId] : []
+
+      // If this instance does not have enough resources to begin the
+      // session then delegate it to peers
+      if (!(await this.enoughResources(sessionPermitted))) {
+        return this.delegate(
+          Method.begin,
+          { node: sessionPermitted, user },
+          () => {
+            // Unable to delegate so return the node with its
+            // limits and status updated
+            if (this.peers.length > 0)
+              log.warn(
+                `Unable to delegate session begin to peers: ${JSON.stringify(
+                  sessionPermitted
+                )}`
+              )
+            const sessionRejected: SoftwareSession = {
+              ...sessionPermitted,
+              id,
+              name,
+              status: 'failed',
+              description: 'Insufficient resources available to begin session'
+            }
+            const sessionInfo: SessionInfo = {
+              node: sessionRejected,
+              user,
+              clients,
+              dateStart: -1,
+              dateLast: Date.now()
+            }
+            // @ts-ignore TS does not know that id is now defined
+            this.sessions[id] = sessionInfo
+            return Promise.resolve(sessionRejected as NodeType)
+          }
+        )
+      }
+
+      // Actually start the session and return the updated
+      // `SoftwareSession` node.
+      const instance =
+        this.config.sessionType === 'docker'
+          ? new DockerSession()
+          : new FirecrackerSession()
+      const dateStart = date(new Date().toISOString())
+      const begunSession = await instance.begin({
+        ...sessionPermitted,
+        id,
+        name,
+        dateStart,
+        status: 'started'
+      })
+
+      // Store and record it's addition
+      const now = Date.now()
+      const sessionInfo: SessionInfo = {
+        node: begunSession,
+        instance,
+        user,
+        clients,
+        dateStart: now,
+        dateLast: now
+      }
+      this.sessions[id] = sessionInfo
+      recordSessionsCount(this.sessions)
+
+      return begunSession as NodeType
     }
     return node
   }
@@ -303,7 +550,7 @@ export class Manager extends BaseExecutor {
 
       // Make sure the session is started
       let { id } = session
-      if (id === undefined) {
+      if (id === undefined && session.status === undefined) {
         // Start the session...
         ;({ id } = await this.begin(session))
       }
@@ -315,17 +562,46 @@ export class Manager extends BaseExecutor {
 
       const sessionInfo = this.sessions[id]
       if (sessionInfo === undefined) {
-        // Client is requesting a session that has already ended
-        // and been removed
-        return {
-          // @ts-ignore TS2698: Spread types may only be created from object types
-          ...node,
-          errors: [
-            codeError('error', {
-              message: 'Session has ended'
-            })
-          ]
+        // TODO: Factor this out as a `passThrough(id, method, args)`
+        // method so that it can also be used in end()
+
+        // Client is requesting a session that does not exist on this manager
+        // (it may have been removed), or it may be on another instance.
+        const location = this.parseSessionId(id)
+        if (location === undefined) {
+          return {
+            // @ts-ignore TS2698: Spread types may only be created from object types
+            ...node,
+            errors: [
+              codeError('error', {
+                message: `Session id is invalid: ${id}`
+              })
+            ]
+          }
         }
+        const { globalIP, localIP, port } = location
+        if (
+          globalIP === this.globalIP &&
+          localIP === this.localIP &&
+          port === this.port
+        ) {
+          // Attempting to access an old session
+          return {
+            // @ts-ignore TS2698: Spread types may only be created from object types
+            ...node,
+            errors: [
+              codeError('error', {
+                message: 'Session is no longer available.'
+              })
+            ]
+          }
+        }
+        // Proxy request to the other manager instance. Note that it may not
+        // be in the peer list.
+        // TODO: pass user info as JWT to other instance
+        // TODO: use a LRU cache or similar to avoid recreating WebSocketClients
+        const client = new WebSocketClient({ host: localIP, port })
+        return client.execute(node, session)
       }
 
       const {
@@ -334,8 +610,12 @@ export class Manager extends BaseExecutor {
         clients
       } = sessionInfo
 
-      if (status === 'stopped') {
-        let message = 'Session has ended.'
+      if (
+        instance === undefined ||
+        status === 'failed' ||
+        status === 'stopped'
+      ) {
+        let message = 'Session is inactive.'
         if (typeof description === 'string') message += ' ' + description
         // @ts-ignore TS2698: Spread types may only be created from object types
         return { ...node, errors: [codeError('error', { message })] }
@@ -378,7 +658,7 @@ export class Manager extends BaseExecutor {
       ])
 
       // Record the activity
-      sessionInfo.dateLast = Date.now() / 1000
+      sessionInfo.dateLast = Date.now()
 
       return processedNode
     }
@@ -402,7 +682,10 @@ export class Manager extends BaseExecutor {
     reason?: string
   ): Promise<NodeType> {
     if (isA('SoftwareSession', node)) {
-      const { id: sessionId } = node
+      const { id: sessionId, status } = node
+
+      if (!(status === 'starting' || status === 'started')) return node
+
       if (sessionId === undefined) {
         // If this happens, it's probably due to a bug in the client
         log.warn('When ending session, no session id provided')
@@ -416,6 +699,11 @@ export class Manager extends BaseExecutor {
         return node
       }
       const { instance, clients } = sessionInfo
+      if (instance === undefined) {
+        // If this happens, it's probably due to a bug in `begin()`
+        log.error(`When ending session, session with no instance: ${sessionId}`)
+        return node
+      }
 
       // Notify clients that the session has ended and
       if (notify !== false) {
@@ -434,7 +722,7 @@ export class Manager extends BaseExecutor {
       })
       sessionInfo.node = endedSession
 
-      // Stop the session instance without awating
+      // Stop the session instance without awaiting
       instance.end(endedSession).catch(error => log.error(error))
 
       return endedSession as NodeType
@@ -495,13 +783,15 @@ export class Manager extends BaseExecutor {
           timeoutRequest,
           timeoutLimit
         } = node
-        if (status === 'stopped') return
 
-        const now = Date.now() / 1000
+        // If the session is not active, then don't do any of this
+        if (!(status === 'starting' || status === 'started')) return
+
+        const now = Date.now()
 
         const maxDuration = optionalMin(durationRequest, durationLimit)
         if (maxDuration !== undefined) {
-          const duration = now - dateStart
+          const duration = (now - dateStart) / 1000
           if (duration > maxDuration) {
             this.end(
               node,
@@ -524,7 +814,7 @@ export class Manager extends BaseExecutor {
 
         const maxTimeout = optionalMin(timeoutRequest, timeoutLimit)
         if (maxTimeout !== undefined) {
-          const timeout = now - dateLast
+          const timeout = (now - dateLast) / 1000
           if (timeout > maxTimeout) {
             this.end(
               node,
@@ -554,20 +844,35 @@ export class Manager extends BaseExecutor {
    * This method should be avoided but may be useful for
    * cleanup when forcing shutdown of a manager.
    */
-  public endAll(): Promise<void> {
+  public async endAll(): Promise<void> {
+    log.info('Ending all sessions')
+
+    // End each session so that users get notifications
+    await Promise.all(
+      Object.values(this.sessions).map(session =>
+        this.end(
+          session,
+          undefined,
+          true,
+          `Manager is ending all sessions`
+        ).catch(error => log.error(error))
+      )
+    )
+
+    // As an extra step, run session type specific `endAll`
     const {
       config: { sessionType }
     } = this
     if (sessionType === 'docker') return DockerSession.endAll()
     if (sessionType === 'firecracker') return FirecrackerSession.endAll()
-    return Promise.resolve()
   }
 
   /**
    * Remove stale sessions.
    *
-   * This frees memory by removing sessions that have been
-   * stopped for a long time (they are retained for `stalePeriod`
+   * This frees memory, and reduces size of sessions list,
+   * by removing sessions that have been failed or stopped
+   * for a long time (they are retained for `stalePeriod`
    * so that the reason for closing can be reported to user).
    */
   protected removeStale(): void {
@@ -575,17 +880,99 @@ export class Manager extends BaseExecutor {
       sessions,
       config: { stalePeriod }
     } = this
-    Object.entries(sessions).map(([sessionId, { node: { dateEnd } }]) => {
-      if (dateEnd !== undefined) {
-        const now = Date.now()
-        const date = new Date(isA('Date', dateEnd) ? dateEnd.value : dateEnd)
-        const stale = (now - date.valueOf()) / 1000
+    const now = Date.now()
+    Object.entries(sessions).map(
+      ([
+        sessionId,
+        {
+          node: { status, dateEnd },
+          dateLast
+        }
+      ]) => {
+        let stale = 0
+        if (dateEnd !== undefined) {
+          const date = new Date(isA('Date', dateEnd) ? dateEnd.value : dateEnd)
+          stale = (now - date.valueOf()) / 1000
+        } else if (status === 'failed') {
+          stale = (now - dateLast) / 1000
+        }
         if (stale > stalePeriod) {
           // Delete and record it's removal
           delete sessions[sessionId]
           recordSessionsCount(sessions)
         }
       }
-    })
+    )
+  }
+
+  /**
+   * Generate info to be displayed on admin page.
+   */
+  public async info(): Promise<any> {
+    const { sessions, peers } = this
+    const sessionReprs = Object.entries(sessions).reduce(
+      (prev, [sessionId, sessionInfo]) => {
+        const {
+          node,
+          user,
+          clients,
+          instance,
+          dateStart,
+          dateLast
+        } = sessionInfo
+        return {
+          ...prev,
+          ...{
+            [sessionId]: {
+              node,
+              user,
+              clients,
+              dateStart,
+              dateLast,
+              instance: instance !== undefined ? instance.repr() : null
+            }
+          }
+        }
+      },
+      {}
+    )
+    return {
+      manifest: await this.manifest(),
+      sessions: sessionReprs,
+      peers
+    }
+  }
+
+  /**
+   * @override Override of {@link BaseExecutor.start} to
+   * configure, begin intervals, etc
+   */
+  public async start(): Promise<void> {
+    const { host, expiryInterval, staleInterval } = this.config
+
+    // Get IP addresses
+    this.globalIP = await globalIP()
+    this.localIP = localIP()
+
+    // Start peer discovery if not listening on local loopback
+    if (host !== '127.0.0.1') await this.discover()
+
+    // Begin checking for expired and stale sessions
+    setInterval(() => this.endExpired(), expiryInterval * 1000)
+    setInterval(() => this.removeStale(), staleInterval * 1000)
+
+    return super.start()
+  }
+
+  /**
+   * @override Override of {@link BaseExecutor.stop} to
+   * leave stop all sessions and leave the discovery channel
+   * (in addition to stopping server).
+   */
+  public async stop(): Promise<void> {
+    if (this.peerChannel !== undefined)
+      await new Promise(resolve => this.peerChannel.destroy(resolve))
+    await this.endAll()
+    return super.stop()
   }
 }
