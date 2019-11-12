@@ -24,19 +24,19 @@
   },
   "license": "Apache-2.0",
   "devDependencies": {
-    "@gerrit0/typedoc": "^0.15.8",
+    "@gerrit0/typedoc": "0.15.8",
     "@stencila/dev-config": "1.2.2",
     "@stencila/dockta": "0.16.1",
     "@types/continuation-local-storage": "3.2.2",
     "@types/dockerode": "2.5.20",
     "@types/jest": "24.0.22",
     "@types/node-os-utils": "1.1.0",
-    "@types/rc": "^1.1.0",
+    "@types/rc": "1.1.0",
     "jest": "24.9.0",
     "ts-jest": "24.1.0",
     "ts-node": "8.5.0",
     "ts-node-dev": "1.0.0-pre.44",
-    "typescript": "^3.7.2"
+    "typescript": "3.7.2"
   },
   "dependencies": {
     "@opencensus/core": "0.0.18",
