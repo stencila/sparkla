@@ -121,10 +121,14 @@ export class Manager extends BaseExecutor {
   public readonly config: Config
 
   /**
-   * Global and local IP addresses used for assigning
-   * session URIs.
+   * Global IP address.
    */
-  private ips: [string, string] = ['0.0.0.0', '127.0.0.1']
+  private globalIP = '0.0.0.0'
+
+  /**
+   * Local IP address.
+   */
+  private localIP = '127.0.0.1'
 
   /**
    * The peer discovery channel.
@@ -174,8 +178,7 @@ export class Manager extends BaseExecutor {
     super(
       // Custom discovery function to discover peer instances
       [() => this.discoveryFunction()],
-      // WebSocket client for delegating requests to
-      // peers
+      // WebSocket client for delegating requests to peers
       [WebSocketClient],
       // WebSocket server for receiving requests
       // from browser based clients (also provides HTTP endpoints)
@@ -183,6 +186,10 @@ export class Manager extends BaseExecutor {
     )
 
     this.config = config
+  }
+
+  get port(): number {
+    return this.config.port
   }
 
   /**
@@ -311,9 +318,7 @@ export class Manager extends BaseExecutor {
    * routing back to this manager instance.
    */
   public generateSessionId(): string {
-    const [globalIP, localIP] = this.ips
-    const port = this.config.port
-    return `ws://${globalIP}/${localIP}/${port}/${uid()}`
+    return `ws://${this.globalIP}/${this.localIP}/${this.port}/${uid()}`
   }
 
   /**
@@ -370,12 +375,9 @@ export class Manager extends BaseExecutor {
         if (this.peerStatus[url] !== undefined) return
 
         // Do not connect to self
-        if (this.ips.includes(host)) {
-          const thisPort = new WebSocketAddress(this.addresses().ws).port
-          if (port === thisPort) {
-            this.peerStatus[url] = false
-            return
-          }
+        if ([this.globalIP, this.localIP].includes(host) && this.port === port) {
+          this.peerStatus[url] = false
+          return
         }
 
         // Only add a peer if able to connect to it and get its manifest
@@ -398,7 +400,7 @@ export class Manager extends BaseExecutor {
         // Check that the peer is not already added (the 'peer' event can emit duplicates
         // for the same peer, and a peer can have events for both it's local and global IPs
         // e.g. 192.168.1.111 from multicast DNS, 103.233.21.109 from DHT)
-        const { id } = manifest
+        const { id, addresses } = manifest
         let add = id !== this.id // not self check again
         if (add) {
           for (const peer of this.peers) {
@@ -410,8 +412,20 @@ export class Manager extends BaseExecutor {
         }
         if (add) {
           log.info(`Peer discovered: ${type} ${host}:${port}`)
-          this.peers.push(new Peer(manifest, []))
+          // Substitute all host IPs amongst the peers addresses
+          // (e.g. 0.0.0.0) with the actual host IP that was discovered
+          if (addresses !== undefined) {
+            manifest = {
+              ...manifest,
+              addresses: Object.entries(addresses).reduce((prev, [key, address]) => {
+                return {...prev, ...{[key]: {...address, host}}}
+              }, {})
+            }
+          }
+          this.peers.push(new Peer(manifest, [WebSocketClient]))
           this.peerStatus[url] = true
+        } else  {
+          client.stop()
         }
       }
     )
@@ -460,6 +474,8 @@ export class Manager extends BaseExecutor {
           () => {
             // Unable to delegate so return the node with its
             // limits and status updated
+            if (this.peers.length > 0)
+              log.warn(`Unable to delegate session begin to peers: ${JSON.stringify(sessionPermitted)}`)
             const sessionRejected: SoftwareSession = {
               ...sessionPermitted,
               id,
@@ -537,17 +553,42 @@ export class Manager extends BaseExecutor {
 
       const sessionInfo = this.sessions[id]
       if (sessionInfo === undefined) {
-        // Client is requesting a session that has already ended
-        // and been removed
-        return {
-          // @ts-ignore TS2698: Spread types may only be created from object types
-          ...node,
-          errors: [
-            codeError('error', {
-              message: 'Session is no longer available.'
-            })
-          ]
+        // TODO: Factor this out as a `passThrough(id, method, args)`
+        // method so that it can also be used in end()
+
+        // Client is requesting a session that does not exist on this manager
+        // (it may have been removed), or it may be on another instance.
+        const location = this.parseSessionId(id)
+        if (location === undefined) {
+          return {
+            // @ts-ignore TS2698: Spread types may only be created from object types
+            ...node,
+            errors: [
+              codeError('error', {
+                message: `Session id is invalid: ${id}`
+              })
+            ]
+          }
         }
+        const {globalIP, localIP, port} = location
+        if (globalIP === this.globalIP && localIP === this.localIP && port === this.port) {
+          // Attempting to access an old session
+          return {
+            // @ts-ignore TS2698: Spread types may only be created from object types
+            ...node,
+            errors: [
+              codeError('error', {
+                message: 'Session is no longer available.'
+              })
+            ]
+          }
+        }
+        // Proxy request to the other manager instance. Note that it may not
+        // be in the peer list.
+        // TODO: pass user info as JWT to other instance
+        // TODO: use a LRU cache or similar to avoid recreating WebSocketClients
+        const client = new WebSocketClient({host: localIP, port})
+        return client.execute(node, session)
       }
 
       const {
@@ -897,7 +938,8 @@ export class Manager extends BaseExecutor {
     const { host, expiryInterval, staleInterval } = this.config
 
     // Get IP addresses
-    this.ips = [await globalIP(), localIP()]
+    this.globalIP = await globalIP()
+    this.localIP = localIP()
 
     // Start peer discovery if not listening on local loopback
     if (host !== '127.0.0.1') await this.discover()
