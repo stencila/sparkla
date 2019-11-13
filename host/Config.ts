@@ -68,14 +68,16 @@ export class Config {
   stalePeriod = 3600
 
   /**
-   * Collect statistics on session and system status?
+   * Interval in seconds for collecting system statistics
    */
-  stats = true
+  statsInterval = 60
 
   /**
-   * Export stats for Prometheus?
+   * The port to serve Prometheus compatible metrics on.
+   * Metrics will be exported at https://localhost:{port}/metrics.
+   * Set to `0` to turn off Prometheus exporting.
    */
-  prometheus = true
+  statsPrometheus = 9464
 
   /**
    * The name of the peer swarm to join.

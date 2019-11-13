@@ -1,4 +1,3 @@
-import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
 import {
   BaseExecutor,
   Capabilities,
@@ -33,6 +32,7 @@ import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { ManagerServer } from './ManagerServer'
 import { Session } from './Session'
+import * as stats from './stats'
 import { globalIP, localIP, optionalMin } from './util'
 
 // Read the package.json file so that package name and version
@@ -44,43 +44,6 @@ const pkg = JSON.parse(
 )
 
 const log = getLogger('sparkla:manager')
-const statusTagKey = { name: 'status' }
-
-const sessionsMeasure = globalStats.createMeasureInt64(
-  'sparkla/sessions_count',
-  MeasureUnit.UNIT,
-  'The number of sessions running'
-)
-
-const sessionsCountView = globalStats.createView(
-  'sparkla/view_sessions_count',
-  sessionsMeasure,
-  AggregationType.COUNT,
-  [statusTagKey],
-  'The number of sessions running'
-)
-globalStats.registerView(sessionsCountView)
-
-const executionDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/session_execution_duration',
-  MeasureUnit.MS,
-  'The time taken to execute a node'
-)
-
-const executionDurationView = globalStats.createView(
-  'sparkla/view_session_execution_duration',
-  executionDurationMeasure,
-  AggregationType.LAST_VALUE,
-  [statusTagKey],
-  'The time taken to execute a node'
-)
-globalStats.registerView(executionDurationView)
-
-function recordSessionsCount(sessions: object): void {
-  globalStats.record([
-    { measure: sessionsMeasure, value: Object.keys(sessions).length }
-  ])
-}
 
 export interface SessionType {
   new (): FirecrackerSession | DockerSession
@@ -541,7 +504,7 @@ export class Manager extends BaseExecutor {
         dateLast: now
       }
       this.sessions[id] = sessionInfo
-      recordSessionsCount(this.sessions)
+      stats.recordSessions(Object.values(this.sessions).length)
 
       return begunSession as NodeType
     }
@@ -659,12 +622,7 @@ export class Manager extends BaseExecutor {
       // Execute the node in the session
       const executeBefore = performance.now()
       const processedNode = (await instance.execute(node)) as NodeType
-      globalStats.record([
-        {
-          measure: executionDurationMeasure,
-          value: performance.now() - executeBefore
-        }
-      ])
+      stats.executionDuration(performance.now() - executeBefore)
 
       // Record the activity
       sessionInfo.dateLast = Date.now()
@@ -908,7 +866,7 @@ export class Manager extends BaseExecutor {
         if (stale > stalePeriod) {
           // Delete and record it's removal
           delete sessions[sessionId]
-          recordSessionsCount(sessions)
+          stats.recordSessions(Object.values(sessions).length)
         }
       }
     )
@@ -957,11 +915,20 @@ export class Manager extends BaseExecutor {
    * configure, begin intervals, etc
    */
   public async start(): Promise<void> {
-    const { host, expiryInterval, staleInterval } = this.config
+    const {
+      host,
+      expiryInterval,
+      staleInterval,
+      statsInterval,
+      statsPrometheus
+    } = this.config
 
     // Get IP addresses
     this.globalIP = await globalIP()
     this.localIP = localIP()
+
+    // Start collecting stats
+    stats.start(statsInterval, statsPrometheus)
 
     // Start peer discovery if not listening on local loopback
     if (host !== '127.0.0.1') await this.discover()

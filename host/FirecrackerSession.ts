@@ -1,46 +1,14 @@
+import { getLogger } from '@stencila/logga'
+import { SoftwareSession } from '@stencila/schema'
 import childProcess from 'child_process'
 import crypto from 'crypto'
 import fs from 'fs'
 import http from 'http'
 import path from 'path'
+import { performance } from 'perf_hooks'
 import { promisify } from 'util'
 import { Session } from './Session'
-import { getLogger } from '@stencila/logga'
-import { SoftwareSession } from '@stencila/schema'
-import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
-import { performance } from 'perf_hooks'
-
-const statisticsTagKey = { name: 'statistics' }
-
-const fireCrackerSessionStartDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/fireCracker_session_start_duration',
-  MeasureUnit.MS,
-  'The time taken to start a FireCracker session'
-)
-
-const fireCrackerSessionStartDurationView = globalStats.createView(
-  'sparkla/view_fire_cracker_session_start_duration',
-  fireCrackerSessionStartDurationMeasure,
-  AggregationType.LAST_VALUE,
-  [statisticsTagKey],
-  'The time taken to start a FireCracker session'
-)
-globalStats.registerView(fireCrackerSessionStartDurationView)
-
-const fireCrackerSessionStopDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/fire_cracker_session_stop_duration',
-  MeasureUnit.MS,
-  'The time taken to stop a FireCracker session'
-)
-
-const fireCrackerSessionStopDurationView = globalStats.createView(
-  'sparkla/view_fire_cracker_session_stop_duration',
-  fireCrackerSessionStopDurationMeasure,
-  AggregationType.LAST_VALUE,
-  [statisticsTagKey],
-  'The time taken to stop a FireCracker session'
-)
-globalStats.registerView(fireCrackerSessionStopDurationView)
+import * as stats from './stats'
 
 const spawn = childProcess.spawn
 const exec = promisify(childProcess.exec)
@@ -218,12 +186,9 @@ export class FirecrackerSession extends Session {
     })
     log.info(`${this.id}:started`)
 
-    globalStats.record([
-      {
-        measure: fireCrackerSessionStartDurationMeasure,
-        value: performance.now() - sessionStartBefore
-      }
-    ])
+    stats.firecrackerSessionStartDuration(
+      performance.now() - sessionStartBefore
+    )
 
     await new Promise(resolve => setTimeout(resolve, 1000))
 
@@ -259,12 +224,9 @@ export class FirecrackerSession extends Session {
       this.process.kill()
       log.info(`${this.id}:stopped`)
 
-      globalStats.record([
-        {
-          measure: fireCrackerSessionStopDurationMeasure,
-          value: performance.now() - sessionStopBefore
-        }
-      ])
+      stats.firecrackerSessionStopDuration(
+        performance.now() - sessionStopBefore
+      )
     }
     return Promise.resolve(node)
   }

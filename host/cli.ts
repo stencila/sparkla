@@ -10,16 +10,8 @@
  *    JWT_SECRET=not-a-secret node dist/host/cli
  */
 
-import {
-  defaultHandler,
-  LogLevel,
-  replaceHandlers,
-  getLogger
-} from '@stencila/logga'
+import { defaultHandler, LogLevel, replaceHandlers } from '@stencila/logga'
 import { Manager } from './Manager'
-import { PrometheusStatsExporter } from '@opencensus/exporter-prometheus'
-import { globalStats } from '@opencensus/core'
-import { SystemStats } from './SystemStats'
 import { Config } from './Config'
 import rc from 'rc'
 
@@ -45,7 +37,7 @@ let { _: commands, ...options } = rc('sparkla', new Config())
 commands = commands.length === 0 ? ['serve'] : commands
 
 const config = options as Config
-const { debug, stats, prometheus } = config
+const { debug } = config
 
 /**
  * Configure log handler to only show debug events
@@ -75,23 +67,6 @@ function showConfig() {
 }
 
 async function serve() {
-  // Start collecting stats
-  if (stats) {
-    const ss = new SystemStats()
-    ss.setup()
-
-    // Export stats to Prometheus if enabled
-    if (prometheus) {
-      const exporter = new PrometheusStatsExporter({
-        // Metrics will be exported on https://localhost:{port}/metrics
-        port: 9464,
-        startServer: true
-      })
-      globalStats.registerExporter(exporter)
-    }
-  }
-
-  // Create and start manager
   const manager = new Manager(config)
   await manager.run()
 }

@@ -11,40 +11,8 @@ import Docker, { Container, MountSettings } from 'dockerode'
 import { Session } from './Session'
 import { optionalMin } from './util'
 import { PassThrough } from 'stream'
-import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
 import { performance } from 'perf_hooks'
-
-const statisticsTagKey = { name: 'statistics' }
-
-const dockerSessionStartDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/docker_session_start_duration',
-  MeasureUnit.MS,
-  'The time taken to start a Docker session'
-)
-
-const dockerSessionStartDurationView = globalStats.createView(
-  'sparkla/view_docker_session_start_duration',
-  dockerSessionStartDurationMeasure,
-  AggregationType.LAST_VALUE,
-  [statisticsTagKey],
-  'The time taken to start a Docker session'
-)
-globalStats.registerView(dockerSessionStartDurationView)
-
-const dockerSessionStopDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/docker_session_stop_duration',
-  MeasureUnit.MS,
-  'The time taken to stop a Docker session'
-)
-
-const dockerSessionStopDurationView = globalStats.createView(
-  'sparkla/view_docker_session_stop_duration',
-  dockerSessionStopDurationMeasure,
-  AggregationType.LAST_VALUE,
-  [statisticsTagKey],
-  'The time taken to stop a Docker session'
-)
-globalStats.registerView(dockerSessionStopDurationView)
+import * as stats from './stats'
 
 const BYTES_PER_GIB = 1024 * 1024 * 1024
 
@@ -171,15 +139,8 @@ export class DockerSession extends Session {
     }))
 
     const sessionStartBefore = performance.now()
-
     await container.start()
-
-    globalStats.record([
-      {
-        measure: dockerSessionStartDurationMeasure,
-        value: performance.now() - sessionStartBefore
-      }
-    ])
+    stats.dockerSessionStopDuration(performance.now() - sessionStartBefore)
 
     // Attach to the container. Use "HTTP hijacking" for
     // separate `stdin` and `stdout`
@@ -226,12 +187,7 @@ export class DockerSession extends Session {
       else throw error
     }
 
-    globalStats.record([
-      {
-        measure: dockerSessionStopDurationMeasure,
-        value: performance.now() - sessionStopBefore
-      }
-    ])
+    stats.dockerSessionStopDuration(performance.now() - sessionStopBefore)
   }
 
   async end(node: SoftwareSession): Promise<SoftwareSession> {
