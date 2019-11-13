@@ -1,3 +1,16 @@
+# [0.12.0](https://github.com/stencila/sparkla/compare/v0.11.1...v0.12.0) (2019-11-13)
+
+
+### Bug Fixes
+
+* **Admin:** Improve logging of errors ([a0b2e85](https://github.com/stencila/sparkla/commit/a0b2e85bed18f9c12d1a6c0ab81cb524018ea0cc))
+* **DockerSession:** Avoid error re CPU quota less than 1000 ([44569ba](https://github.com/stencila/sparkla/commit/44569ba13d6427c3bf4ef7afcc21e65af7c73ddc))
+
+
+### Features
+
+* **Logging:** Send logs to Sentry and record in statistics ([3b88e63](https://github.com/stencila/sparkla/commit/3b88e63219394ceeadb5454760884561d85b47d2))
+
 ## [0.11.1](https://github.com/stencila/sparkla/compare/v0.11.0...v0.11.1) (2019-11-13)
 
 
