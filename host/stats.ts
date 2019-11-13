@@ -208,8 +208,11 @@ async function recordSystemStats() {
  * @param prometheus The port number to serve Prometheus metrics on.
  */
 export function start(interval: number, prometheus: number) {
-  recordSystemStats()
-  setInterval(recordSystemStats, interval * 1000)
+  const record = () => {
+    recordSystemStats().catch(error => log.error(error))
+  }
+  record()
+  setInterval(record, interval * 1000)
 
   if (prometheus > 0) {
     const exporter = new PrometheusStatsExporter({
