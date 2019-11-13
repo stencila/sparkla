@@ -140,7 +140,7 @@ export class DockerSession extends Session {
 
     const sessionStartBefore = performance.now()
     await container.start()
-    stats.dockerSessionStopDuration(performance.now() - sessionStartBefore)
+    stats.dockerSessionStartDuration(performance.now() - sessionStartBefore)
 
     // Attach to the container. Use "HTTP hijacking" for
     // separate `stdin` and `stdout`

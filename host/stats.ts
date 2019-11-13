@@ -8,9 +8,46 @@ const log = getLogger('sparkla:stats')
 const statusTagKey = { name: 'status' }
 const statisticsTagKey = { name: 'statistics' }
 
+// Deployment related statistics
+
+const versionMeasure = globalStats.createMeasureDouble(
+  'sparkla/version',
+  MeasureUnit.UNIT,
+  'The package version number'
+)
+
+const versionView = globalStats.createView(
+  'sparkla/view_version',
+  versionMeasure,
+  AggregationType.LAST_VALUE,
+  [statusTagKey],
+  'The package version number'
+)
+globalStats.registerView(versionView)
+
+export function recordVersion(version: string) {
+  // It is necessary to wait some time before attempting to
+  // record a measure, so this timeout enforces that.
+  setTimeout(() => {
+    try {
+      const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version)
+      if (match !== null) {
+        const [_, major, minor, patch] = match
+        const value =
+          parseFloat(major) +
+          parseFloat(minor) / 100 +
+          parseFloat(patch) / 10000
+        globalStats.record([{ measure: versionMeasure, value }])
+      }
+    } catch (error) {
+      log.error(error)
+    }
+  }, 1000)
+}
+
 // Session related statistics
 
-const sessionsMeasure = globalStats.createMeasureInt64(
+const sessionsCountMeasure = globalStats.createMeasureInt64(
   'sparkla/sessions_count',
   MeasureUnit.UNIT,
   'The number of sessions running'
@@ -18,7 +55,7 @@ const sessionsMeasure = globalStats.createMeasureInt64(
 
 const sessionsCountView = globalStats.createView(
   'sparkla/view_sessions_count',
-  sessionsMeasure,
+  sessionsCountMeasure,
   AggregationType.COUNT,
   [statusTagKey],
   'The number of sessions running'
@@ -26,7 +63,7 @@ const sessionsCountView = globalStats.createView(
 globalStats.registerView(sessionsCountView)
 
 export function recordSessions(value: number): void {
-  globalStats.record([{ measure: sessionsMeasure, value }])
+  globalStats.record([{ measure: sessionsCountMeasure, value }])
 }
 
 const executionDurationMeasure = globalStats.createMeasureDouble(
@@ -57,7 +94,7 @@ const dockerSessionStartDurationMeasure = globalStats.createMeasureDouble(
 )
 
 const dockerSessionStartDurationView = globalStats.createView(
-  'sparkla/view_firecracker_session_start_duration',
+  'sparkla/view_docker_session_start_duration',
   dockerSessionStartDurationMeasure,
   AggregationType.LAST_VALUE,
   [statisticsTagKey],
@@ -70,13 +107,13 @@ export function dockerSessionStartDuration(value: number): void {
 }
 
 const dockerSessionStopDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/firecracker_session_stop_duration',
+  'sparkla/docker_session_stop_duration',
   MeasureUnit.MS,
   'The time taken to stop a Docker session'
 )
 
 const dockerSessionStopDurationView = globalStats.createView(
-  'sparkla/view_firecracker_session_stop_duration',
+  'sparkla/view_docker_session_stop_duration',
   dockerSessionStopDurationMeasure,
   AggregationType.LAST_VALUE,
   [statisticsTagKey],
