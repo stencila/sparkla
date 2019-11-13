@@ -17,7 +17,8 @@ import * as stats from './stats'
 const BYTES_PER_GIB = 1024 * 1024 * 1024
 
 // Length of CPU period in microseconds
-const CPU_PERIOD = 1000
+// Should be greater than 1000
+const CPU_PERIOD = 1000 * 1000
 
 const log = getLogger('sparkla:docker')
 
@@ -132,7 +133,8 @@ export class DockerSession extends Session {
         // The length of a CPU period in microseconds.
         CpuPeriod: CPU_PERIOD,
         // Microseconds of CPU time that the container can get in a CPU period.
-        CpuQuota: cpuQuota !== undefined ? cpuQuota * CPU_PERIOD : undefined,
+        // Will error if less than 1000.
+        CpuQuota: cpuQuota !== undefined ? Math.max(1000, cpuQuota * CPU_PERIOD) : undefined,
         // Specification for mounts to be added to the container.
         Mounts: mounts
       }
