@@ -1,3 +1,15 @@
+# [0.11.0](https://github.com/stencila/sparkla/compare/v0.10.0...v0.11.0) (2019-11-13)
+
+
+### Bug Fixes
+
+* **Packaging:** Change how package.json is read ([a3d514b](https://github.com/stencila/sparkla/commit/a3d514bd203115da6bea250a51022adaa4190679))
+
+
+### Features
+
+* **Stats:** Add package version number to stats ([ddb3dd6](https://github.com/stencila/sparkla/commit/ddb3dd6c90daa25914aa8228ed60ba784745b207))
+
 # [0.10.0](https://github.com/stencila/sparkla/compare/v0.9.0...v0.10.0) (2019-11-12)
 
 
