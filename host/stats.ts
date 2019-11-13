@@ -1,7 +1,8 @@
 import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
 import { PrometheusStatsExporter } from '@opencensus/exporter-prometheus'
-import { getLogger } from '@stencila/logga'
+import { getLogger, LogData, LogLevel } from '@stencila/logga'
 import osu from 'node-os-utils'
+import pkg from './pkg'
 
 const log = getLogger('sparkla:stats')
 
@@ -25,12 +26,12 @@ const versionView = globalStats.createView(
 )
 globalStats.registerView(versionView)
 
-export function recordVersion(version: string) {
+export function recordVersion() {
   // It is necessary to wait some time before attempting to
   // record a measure, so this timeout enforces that.
   setTimeout(() => {
     try {
-      const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version)
+      const match = /^(\d+)\.(\d+)\.(\d+)/.exec(pkg.version)
       if (match !== null) {
         const [_, major, minor, patch] = match
         const value =
@@ -43,6 +44,27 @@ export function recordVersion(version: string) {
       log.error(error)
     }
   }, 1000)
+}
+
+const logLevelMeasure = globalStats.createMeasureInt64(
+  'sparkla/log_level',
+  MeasureUnit.UNIT,
+  'The level of a log event; 0 = error, 1 = warning etc'
+)
+
+const logLevelMeasureView = globalStats.createView(
+  'sparkla/view_log_level',
+  logLevelMeasure,
+  AggregationType.DISTRIBUTION,
+  [statusTagKey],
+  'The distribution of log levels',
+  [0, 1, 2, 3]
+)
+globalStats.registerView(logLevelMeasureView)
+
+export function recordLogData(data: LogData) {
+  const { level } = data
+  globalStats.record([{ measure: logLevelMeasure, value: level }])
 }
 
 // Session related statistics

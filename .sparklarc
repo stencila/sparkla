@@ -43,11 +43,16 @@
   // considered stale and will be removed from the list of sessions.
   "stalePeriod": 3600,
 
-  // Collect statistics on session and system status?
-  "stats": true,
+  // Interval in seconds for collecting system statistics
+  "statsInterval": 60,
 
-  // Export stats for Prometheus?
-  "prometheus": true,
+  // The port to serve Prometheus compatible metrics on.
+  // Set to `0` to turn off Prometheus exporting.
+  "statsPrometheus": 9464,
+
+  // The Sentry DSN (Data Source Name) to record warning and error log entries.
+  // Set to `null` to not send logs to Sentry.
+  "logsSentry": "https://7a4f9c9b0ef5474596c0066bb364e615@sentry.io/1818023",
 
   // The name of the peer swarm to join.
   "peerSwarm": "sparkla"

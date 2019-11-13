@@ -41,6 +41,7 @@
   "dependencies": {
     "@opencensus/core": "0.0.18",
     "@opencensus/exporter-prometheus": "0.0.18",
+    "@sentry/node": "^5.8.0",
     "@stencila/executa": "^0.14.0",
     "@stencila/logga": "^1.4.1",
     "discovery-channel": "^5.5.1",

@@ -59,8 +59,9 @@ sparkla serve --port 9001 --cpuTotal 1
 | timeoutWarning  | Number of seconds to provide clients with a warning prior to a reaching session timeout.                                 | number                         | 60                   |
 | staleInterval   | Interval in seconds between checks for stale sessions.                                                                   | number                         | 60                   |
 | stalePeriod     | Number of seconds that a stopped session is considered stale and will be removed from the list of sessions.              | number                         | 3600                 |
-| stats           | Collect statistics on session and system status?                                                                         | boolean                        | true                 |
-| prometheus      | Export stats for Prometheus?                                                                                             | boolean                        | true                 |
+| statsInterval   | Interval in seconds for collecting system statistics                                                                     | number                         | 60                   |
+| statsPrometheus | The port to serve Prometheus compatible metrics on. Set to `0` to turn off Prometheus exporting.                         | number                         | 9464                 |
+| logsSentry      | The Sentry DSN (Data Source Name) to record warning and error log entries. Set to `null` to not send logs to Sentry.     | string                         | "https://7a4f9c9b0ef5474596c0066bb364e615@sentry.io/1818023" |
 | peerSwarm       | The name of the peer swarm to join.                                                                                      | string, null                   | "sparkla"            |
 
 <!-- OPTIONS-END -->
