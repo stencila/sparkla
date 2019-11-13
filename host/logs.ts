@@ -40,7 +40,8 @@ export function setup(config: Config) {
     })
     addHandler(data => {
       const { level, message, stack } = data
-      if (level === LogLevel.warn) Sentry.captureMessage(message, Sentry.Severity.Warning)
+      if (level === LogLevel.warn)
+        Sentry.captureMessage(message, Sentry.Severity.Warning)
       else if (level === LogLevel.error)
         Sentry.captureException({ message, stack })
     })
