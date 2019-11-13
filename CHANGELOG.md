@@ -1,3 +1,11 @@
+## [0.11.1](https://github.com/stencila/sparkla/compare/v0.11.0...v0.11.1) (2019-11-13)
+
+
+### Bug Fixes
+
+* **ManagerServer:** Remove redundant stop method ([d014b6c](https://github.com/stencila/sparkla/commit/d014b6c75b225a3f8fa960a03cdb6627ed9c9583))
+* **Package:** Include static files in dist ([ea93919](https://github.com/stencila/sparkla/commit/ea9391925b9d368bebb05b599fdc792393fedf90))
+
 # [0.11.0](https://github.com/stencila/sparkla/compare/v0.10.0...v0.11.0) (2019-11-13)
 
 
