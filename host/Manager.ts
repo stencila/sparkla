@@ -21,18 +21,27 @@ import {
 } from '@stencila/schema'
 // @ts-ignore
 import discoveryChannel from 'discovery-channel'
+import fs from 'fs'
 import { JSONSchema7Definition } from 'json-schema'
 // @ts-ignore
 import moniker from 'moniker'
 import osu from 'node-os-utils'
+import path from 'path'
 import { performance } from 'perf_hooks'
-import pkg from '../package.json'
 import { Config } from './Config'
 import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
 import { ManagerServer } from './ManagerServer'
 import { Session } from './Session'
 import { globalIP, localIP, optionalMin } from './util'
+
+// Read the package.json file so that package name and version
+// can be put in manifest. Attempting to do this by `import pkg from ...`
+// causes an obscure bug in `npm pack` due to the resulting
+// nested `package.json` in `dist`.
+const pkg = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')
+)
 
 const log = getLogger('sparkla:manager')
 const statusTagKey = { name: 'status' }
