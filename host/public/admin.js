@@ -1,6 +1,16 @@
 /* eslint-disable */
 
 const { WebSocketClient } = executa
+const { getLogger, replaceHandlers } = logga
+
+const log = getLogger('sparkla:browser:admin')
+
+// Instead of notifications going to console, create
+// notification elements.
+replaceHandlers(logData => {
+  const { level, message } = logData
+  addNotification(level, message)
+})
 
 /**
  * A client to connect to the `Manager`.
@@ -186,9 +196,13 @@ const defaultSession = {
  * @param session A `SoftwareSession` node with details of the
  *                session to start
  */
-async function beginSession(session) {
-  session = await executor.begin(session)
-  console.log('Began', session)
+async function beginSession(sessionNode) {
+  try {
+    sessionNode = await executor.begin(sessionNode)
+    log.info(`Began ${sessionNode.name}`)
+  } catch (error) {
+    log.error(error)
+  }
   update()
 }
 
@@ -219,8 +233,12 @@ document.body.appendChild(beginElem)
  * @param id The id of the session to end.
  */
 async function endSession(sessionNode) {
-  sessionNode = await executor.end(sessionNode)
-  console.log('Ended', sessionNode)
+  try {
+    sessionNode = await executor.end(sessionNode)
+    log.info(`Ended ${sessionNode.name}`)
+  } catch (error) {
+    log.error(error)
+  }
   update()
 }
 
@@ -256,8 +274,12 @@ function selectSession(sessionInfo) {
   selectedElem.querySelector(
     'stencila-code-chunk'
   ).executeHandler = async codeChunk => {
-    const result = await executor.execute(codeChunk, sessionNode)
-    console.log('Executed', result)
-    return result
+    try {
+      const result = await executor.execute(codeChunk, sessionNode)
+      console.log('Executed', result)
+      return result
+    } catch (error) {
+      log.error(error)
+    }
   }
 }
