@@ -134,7 +134,10 @@ export class DockerSession extends Session {
         CpuPeriod: CPU_PERIOD,
         // Microseconds of CPU time that the container can get in a CPU period.
         // Will error if less than 1000.
-        CpuQuota: cpuQuota !== undefined ? Math.max(1000, cpuQuota * CPU_PERIOD) : undefined,
+        CpuQuota:
+          cpuQuota !== undefined
+            ? Math.max(1000, cpuQuota * CPU_PERIOD)
+            : undefined,
         // Specification for mounts to be added to the container.
         Mounts: mounts
       }

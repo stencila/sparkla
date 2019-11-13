@@ -439,29 +439,29 @@ export class Manager extends BaseExecutor {
       if (id === undefined) id = this.generateSessionId()
       if (name === undefined) name = this.generateSessionName()
 
+      const sessionToBegin = { ...sessionPermitted, id, name }
+
       // Record the client that started the session
       const clientId = user.client !== undefined ? user.client.id : undefined
       const clients = clientId !== undefined ? [clientId] : []
 
       // If this instance does not have enough resources to begin the
       // session then delegate it to peers
-      if (!(await this.enoughResources(sessionPermitted))) {
+      if (!(await this.enoughResources(sessionToBegin))) {
         return this.delegate(
           Method.begin,
-          { node: sessionPermitted, user },
+          { node: sessionToBegin, user },
           () => {
             // Unable to delegate so return the node with its
             // limits and status updated
             if (this.peers.length > 0)
               log.warn(
                 `Unable to delegate session begin to peers: ${JSON.stringify(
-                  sessionPermitted
+                  sessionToBegin
                 )}`
               )
             const sessionRejected: SoftwareSession = {
-              ...sessionPermitted,
-              id,
-              name,
+              ...sessionToBegin,
               status: 'failed',
               description: 'Insufficient resources available to begin session'
             }
@@ -485,19 +485,16 @@ export class Manager extends BaseExecutor {
         this.config.sessionType === 'docker'
           ? new DockerSession()
           : new FirecrackerSession()
-      const dateStart = date(new Date().toISOString())
-      const begunSession = await instance.begin({
-        ...sessionPermitted,
-        id,
-        name,
-        dateStart,
+      const sessionBegun = await instance.begin({
+        ...sessionToBegin,
+        dateStart: date(new Date().toISOString()),
         status: 'started'
       })
 
       // Store and record it's addition
       const now = Date.now()
       const sessionInfo: SessionInfo = {
-        node: begunSession,
+        node: sessionBegun,
         instance,
         user,
         clients,
@@ -507,7 +504,7 @@ export class Manager extends BaseExecutor {
       this.sessions[id] = sessionInfo
       stats.recordSessions(Object.values(this.sessions).length)
 
-      return begunSession as NodeType
+      return sessionBegun as NodeType
     }
     return node
   }
