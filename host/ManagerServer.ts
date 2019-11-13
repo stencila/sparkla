@@ -10,7 +10,7 @@ import fastifyStatic from 'fastify-static'
 import path from 'path'
 import { Manager } from './Manager'
 
-const log = getLogger('sparkla:manager-server')
+const log = getLogger('sparkla:manager:server')
 
 /**
  * A WebSocket server for `Manager`
@@ -27,7 +27,7 @@ export class ManagerServer extends WebSocketServer {
   }
 
   /**
-   * @override Overrides {@link WebSocketServer.buildApp} to add sattic
+   * @override Overrides {@link WebSocketServer.buildApp} to add static
    * file serving and admin interface.
    */
   protected buildApp(): FastifyInstance {
