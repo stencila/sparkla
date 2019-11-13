@@ -124,16 +124,4 @@ export class ManagerServer extends WebSocketServer {
     const jwt = this.app.jwt.sign(claims)
     log.info(`Admin page at:\n  ${url}/admin?jwt=${jwt}`)
   }
-
-  /**
-   * @override Override `HttpServer.stop` to end all the manager's
-   * sessions.
-   */
-  public async stop(): Promise<void> {
-    const manager = this.executor
-    if (manager !== undefined) {
-      // @ts-ignore that TS doesn't know that this is a Manager instance
-      await manager.endAll()
-    }
-  }
 }
