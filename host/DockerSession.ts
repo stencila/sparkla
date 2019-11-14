@@ -11,8 +11,6 @@ import Docker, { Container, MountSettings } from 'dockerode'
 import { Session } from './Session'
 import { optionalMin } from './util'
 import { PassThrough } from 'stream'
-import { performance } from 'perf_hooks'
-import * as stats from './stats'
 
 const BYTES_PER_GIB = 1024 * 1024 * 1024
 
@@ -143,9 +141,7 @@ export class DockerSession extends Session {
       }
     }))
 
-    const sessionStartBefore = performance.now()
     await container.start()
-    stats.dockerSessionStartDuration(performance.now() - sessionStartBefore)
 
     // Attach to the container. Use "HTTP hijacking" for
     // separate `stdin` and `stdout`
@@ -175,8 +171,6 @@ export class DockerSession extends Session {
   }
 
   static async stopContainer(container: Container): Promise<void> {
-    const sessionStopBefore = performance.now()
-
     try {
       await container.stop()
       await container.remove()
@@ -185,14 +179,13 @@ export class DockerSession extends Session {
       // ignore that error
       const message = error.message as string
       if (
-        message.includes('No such container') ||
-        message.includes('already in progress')
+        !(
+          message.includes('No such container') ||
+          message.includes('already in progress')
+        )
       )
-        return
-      else throw error
+        throw error
     }
-
-    stats.dockerSessionStopDuration(performance.now() - sessionStopBefore)
   }
 
   async end(node: SoftwareSession): Promise<SoftwareSession> {

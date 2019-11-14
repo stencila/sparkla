@@ -1,13 +1,16 @@
-import { AggregationType, globalStats, MeasureUnit } from '@opencensus/core'
+import {
+  AggregationType,
+  globalStats,
+  MeasureUnit,
+  TagMap
+} from '@opencensus/core'
 import { PrometheusStatsExporter } from '@opencensus/exporter-prometheus'
 import { getLogger, LogData, LogLevel } from '@stencila/logga'
 import osu from 'node-os-utils'
 import pkg from './pkg'
+import { SoftwareSession } from '@stencila/schema'
 
 const log = getLogger('sparkla:stats')
-
-const statusTagKey = { name: 'status' }
-const statisticsTagKey = { name: 'statistics' }
 
 // Deployment related statistics
 
@@ -21,7 +24,7 @@ const versionView = globalStats.createView(
   'sparkla/view_version',
   versionMeasure,
   AggregationType.LAST_VALUE,
-  [statusTagKey],
+  [],
   'The package version number'
 )
 globalStats.registerView(versionView)
@@ -32,9 +35,7 @@ export function recordVersion() {
     if (match !== null) {
       const [_, major, minor, patch] = match
       const value =
-        parseFloat(major) +
-        parseFloat(minor) / 100 +
-        parseFloat(patch) / 10000
+        parseFloat(major) + parseFloat(minor) / 100 + parseFloat(patch) / 10000
       globalStats.record([{ measure: versionMeasure, value }])
     }
   } catch (error) {
@@ -42,149 +43,143 @@ export function recordVersion() {
   }
 }
 
-const logLevelMeasure = globalStats.createMeasureInt64(
-  'sparkla/log_level',
+const logLevelTagKey = { name: 'logLevel' }
+
+const logEventMeasure = globalStats.createMeasureInt64(
+  'sparkla/log_event',
   MeasureUnit.UNIT,
-  'The level of a log event; 0 = error, 1 = warning etc'
+  'The number of log events'
 )
 
-const logLevelMeasureView = globalStats.createView(
-  'sparkla/view_log_level',
-  logLevelMeasure,
-  AggregationType.DISTRIBUTION,
-  [statusTagKey],
-  'The distribution of log levels',
-  [0, 1, 2, 3]
+const logEventMeasureView = globalStats.createView(
+  'sparkla/view_log_event',
+  logEventMeasure,
+  AggregationType.COUNT,
+  [logLevelTagKey],
+  'The number of log events'
 )
-globalStats.registerView(logLevelMeasureView)
+globalStats.registerView(logEventMeasureView)
 
 export function recordLogData(data: LogData) {
   const { level } = data
-  globalStats.record([{ measure: logLevelMeasure, value: level }])
+  const tags = new TagMap()
+  tags.set(logLevelTagKey, { value: LogLevel[level] })
+  globalStats.record([{ measure: logEventMeasure, value: 1 }], tags)
 }
 
 // Session related statistics
 
-const sessionsCountMeasure = globalStats.createMeasureInt64(
-  'sparkla/sessions_count',
+const sessionTypeTagKey = { name: 'type' }
+const sessionStatusTagKey = { name: 'status' }
+const sessionEnvironTagKey = { name: 'environ' }
+
+function createSessionTags(session: SoftwareSession, type: string) {
+  const {
+    status = 'undefined',
+    environment: { name } = { name: 'undefined' }
+  } = session
+
+  const tags = new TagMap()
+  tags.set(sessionTypeTagKey, { value: type })
+  tags.set(sessionStatusTagKey, { value: status })
+  tags.set(sessionEnvironTagKey, { value: name })
+
+  return tags
+}
+
+const sessionCountMeasure = globalStats.createMeasureInt64(
+  'sparkla/session_count',
   MeasureUnit.UNIT,
-  'The number of sessions running'
+  'The number of sessions created'
 )
 
-const sessionsCountView = globalStats.createView(
-  'sparkla/view_sessions_count',
-  sessionsCountMeasure,
+const sessionCountView = globalStats.createView(
+  'sparkla/view_session_count',
+  sessionCountMeasure,
   AggregationType.COUNT,
-  [statusTagKey],
-  'The number of sessions running'
+  [sessionTypeTagKey, sessionStatusTagKey, sessionEnvironTagKey],
+  'The number of sessions created'
 )
-globalStats.registerView(sessionsCountView)
+globalStats.registerView(sessionCountView)
 
-export function recordSessions(value: number): void {
-  globalStats.record([{ measure: sessionsCountMeasure, value }])
+export function recordSession(session: SoftwareSession, type: string): void {
+  globalStats.record(
+    [{ measure: sessionCountMeasure, value: 1 }],
+    createSessionTags(session, type)
+  )
 }
 
-const executionDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/session_execution_duration',
+const sessionBeginDurationMeasure = globalStats.createMeasureDouble(
+  'sparkla/session_begin_duration',
+  MeasureUnit.MS,
+  'The time taken to begin a session'
+)
+
+const sessionBeginDurationView = globalStats.createView(
+  'sparkla/view_session_begin_duration',
+  sessionBeginDurationMeasure,
+  AggregationType.LAST_VALUE,
+  [sessionTypeTagKey, sessionEnvironTagKey],
+  'The time taken to begin a session'
+)
+globalStats.registerView(sessionBeginDurationView)
+
+export function recordSessionBeginDuration(
+  value: number,
+  session: SoftwareSession,
+  type: string
+): void {
+  globalStats.record(
+    [{ measure: sessionBeginDurationMeasure, value }],
+    createSessionTags(session, type)
+  )
+}
+
+const sessionEndDurationMeasure = globalStats.createMeasureDouble(
+  'sparkla/session_end_duration',
+  MeasureUnit.MS,
+  'The time taken to end a session'
+)
+
+const sessionEndDurationView = globalStats.createView(
+  'sparkla/view_session_end_duration',
+  sessionEndDurationMeasure,
+  AggregationType.LAST_VALUE,
+  [sessionTypeTagKey, sessionEnvironTagKey],
+  'The time taken to end a session'
+)
+globalStats.registerView(sessionEndDurationView)
+
+export function recordSessionEndDuration(
+  value: number,
+  session: SoftwareSession,
+  type: string
+): void {
+  globalStats.record(
+    [{ measure: sessionEndDurationMeasure, value }],
+    createSessionTags(session, type)
+  )
+}
+
+const executeDurationMeasure = globalStats.createMeasureDouble(
+  'sparkla/session_execute_duration',
   MeasureUnit.MS,
   'The time taken to execute a node'
 )
 
-const executionDurationView = globalStats.createView(
-  'sparkla/view_session_execution_duration',
-  executionDurationMeasure,
+const executeDurationView = globalStats.createView(
+  'sparkla/view_session_execute_duration',
+  executeDurationMeasure,
   AggregationType.LAST_VALUE,
-  [statisticsTagKey],
+  [sessionTypeTagKey],
   'The time taken to execute a node'
 )
-globalStats.registerView(executionDurationView)
+globalStats.registerView(executeDurationView)
 
-export function executionDuration(value: number): void {
-  globalStats.record([{ measure: executionDurationMeasure, value }])
-}
-
-// Docker sessions
-
-const dockerSessionStartDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/docker_session_start_duration',
-  MeasureUnit.MS,
-  'The time taken to start a Docker session'
-)
-
-const dockerSessionStartDurationView = globalStats.createView(
-  'sparkla/view_docker_session_start_duration',
-  dockerSessionStartDurationMeasure,
-  AggregationType.LAST_VALUE,
-  [statisticsTagKey],
-  'The time taken to start a Docker session'
-)
-globalStats.registerView(dockerSessionStartDurationView)
-
-export function dockerSessionStartDuration(value: number): void {
-  globalStats.record([{ measure: dockerSessionStartDurationMeasure, value }])
-}
-
-const dockerSessionStopDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/docker_session_stop_duration',
-  MeasureUnit.MS,
-  'The time taken to stop a Docker session'
-)
-
-const dockerSessionStopDurationView = globalStats.createView(
-  'sparkla/view_docker_session_stop_duration',
-  dockerSessionStopDurationMeasure,
-  AggregationType.LAST_VALUE,
-  [statisticsTagKey],
-  'The time taken to stop a Docker session'
-)
-globalStats.registerView(dockerSessionStopDurationView)
-
-export function dockerSessionStopDuration(value: number): void {
-  globalStats.record([{ measure: dockerSessionStopDurationMeasure, value }])
-}
-
-// Firecracker sessions
-
-const firecrackerSessionStartDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/firecracker_session_start_duration',
-  MeasureUnit.MS,
-  'The time taken to start a Firecracker session'
-)
-
-const firecrackerSessionStartDurationView = globalStats.createView(
-  'sparkla/view_firecracker_session_start_duration',
-  firecrackerSessionStartDurationMeasure,
-  AggregationType.LAST_VALUE,
-  [statisticsTagKey],
-  'The time taken to start a Firecracker session'
-)
-globalStats.registerView(firecrackerSessionStartDurationView)
-
-export function firecrackerSessionStartDuration(value: number): void {
-  globalStats.record([
-    { measure: firecrackerSessionStartDurationMeasure, value }
-  ])
-}
-
-const firecrackerSessionStopDurationMeasure = globalStats.createMeasureDouble(
-  'sparkla/firecracker_session_stop_duration',
-  MeasureUnit.MS,
-  'The time taken to stop a Firecracker session'
-)
-
-const firecrackerSessionStopDurationView = globalStats.createView(
-  'sparkla/view_firecracker_session_stop_duration',
-  firecrackerSessionStopDurationMeasure,
-  AggregationType.LAST_VALUE,
-  [statisticsTagKey],
-  'The time taken to stop a Firecracker session'
-)
-globalStats.registerView(firecrackerSessionStopDurationView)
-
-export function firecrackerSessionStopDuration(value: number): void {
-  globalStats.record([
-    { measure: firecrackerSessionStopDurationMeasure, value }
-  ])
+export function recordExecuteDuration(value: number, type: string): void {
+  const tags = new TagMap()
+  tags.set(sessionTypeTagKey, { value: type })
+  globalStats.record([{ measure: executeDurationMeasure, value }], tags)
 }
 
 // System level statistics
@@ -211,7 +206,7 @@ const freeMemoryView = globalStats.createView(
   'sparkla/view_memory_free',
   freeMemoryMeasure,
   AggregationType.LAST_VALUE,
-  [statusTagKey],
+  [],
   'The amount of free memory'
 )
 globalStats.registerView(freeMemoryView)
@@ -220,7 +215,7 @@ const usedPercentMemoryView = globalStats.createView(
   'sparkla/view_memory_used_percent',
   usedPercentMemoryMeasure,
   AggregationType.LAST_VALUE,
-  [statusTagKey],
+  [],
   'The percent of used memory'
 )
 globalStats.registerView(usedPercentMemoryView)
@@ -229,7 +224,7 @@ const cpuUsagePercentView = globalStats.createView(
   'sparkla/view_cpu_used_percent',
   cpuUsagePercentMeasure,
   AggregationType.LAST_VALUE,
-  [statusTagKey],
+  [],
   'The percent of CPU used'
 )
 globalStats.registerView(cpuUsagePercentView)

@@ -5,10 +5,8 @@ import crypto from 'crypto'
 import fs from 'fs'
 import http from 'http'
 import path from 'path'
-import { performance } from 'perf_hooks'
 import { promisify } from 'util'
 import { Session } from './Session'
-import * as stats from './stats'
 
 const spawn = childProcess.spawn
 const exec = promisify(childProcess.exec)
@@ -111,8 +109,6 @@ export class FirecrackerSession extends Session {
     // TODO: When using Jailer this may not be necessary
     fs.mkdirSync(this.home)
 
-    const sessionStartBefore = performance.now()
-
     // Create the VM
     const process = (this.process = spawn(
       `./firecracker`,
@@ -186,10 +182,6 @@ export class FirecrackerSession extends Session {
     })
     log.info(`${this.id}:started`)
 
-    stats.firecrackerSessionStartDuration(
-      performance.now() - sessionStartBefore
-    )
-
     await new Promise(resolve => setTimeout(resolve, 1000))
 
     return node
@@ -219,14 +211,9 @@ export class FirecrackerSession extends Session {
    */
   end(node: SoftwareSession): Promise<SoftwareSession> {
     if (this.process !== undefined) {
-      const sessionStopBefore = performance.now()
       // this.vmSocket.destroy()
       this.process.kill()
       log.info(`${this.id}:stopped`)
-
-      stats.firecrackerSessionStopDuration(
-        performance.now() - sessionStopBefore
-      )
     }
     return Promise.resolve(node)
   }

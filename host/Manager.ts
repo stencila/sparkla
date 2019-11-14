@@ -464,6 +464,7 @@ export class Manager extends BaseExecutor {
             }
             // @ts-ignore TS does not know that id is now defined
             this.sessions[id] = sessionInfo
+            stats.recordSession(sessionRejected, this.config.sessionType)
             return Promise.resolve(sessionRejected as NodeType)
           }
         )
@@ -475,11 +476,17 @@ export class Manager extends BaseExecutor {
         this.config.sessionType === 'docker'
           ? new DockerSession()
           : new FirecrackerSession()
+      const before = performance.now()
       const sessionBegun = await instance.begin({
         ...sessionToBegin,
         dateStart: date(new Date().toISOString()),
         status: 'started'
       })
+      stats.recordSessionBeginDuration(
+        performance.now() - before,
+        sessionBegun,
+        this.config.sessionType
+      )
 
       // Store and record it's addition
       const now = Date.now()
@@ -492,8 +499,7 @@ export class Manager extends BaseExecutor {
         dateLast: now
       }
       this.sessions[id] = sessionInfo
-      stats.recordSessions(Object.values(this.sessions).length)
-
+      stats.recordSession(sessionBegun, this.config.sessionType)
       return sessionBegun as NodeType
     }
     return node
@@ -608,9 +614,12 @@ export class Manager extends BaseExecutor {
       }
 
       // Execute the node in the session
-      const executeBefore = performance.now()
+      const before = performance.now()
       const processedNode = (await instance.execute(node)) as NodeType
-      stats.executionDuration(performance.now() - executeBefore)
+      stats.recordExecuteDuration(
+        performance.now() - before,
+        this.config.sessionType
+      )
 
       // Record the activity
       sessionInfo.dateLast = Date.now()
@@ -678,7 +687,17 @@ export class Manager extends BaseExecutor {
       sessionInfo.node = endedSession
 
       // Stop the session instance without awaiting
-      instance.end(endedSession).catch(error => log.error(error))
+      const before = performance.now()
+      instance
+        .end(endedSession)
+        .then(() =>
+          stats.recordSessionEndDuration(
+            performance.now() - before,
+            endedSession,
+            this.config.sessionType
+          )
+        )
+        .catch(error => log.error(error))
 
       return endedSession as NodeType
     }
@@ -851,11 +870,7 @@ export class Manager extends BaseExecutor {
         } else if (status === 'failed') {
           stale = (now - dateLast) / 1000
         }
-        if (stale > stalePeriod) {
-          // Delete and record it's removal
-          delete sessions[sessionId]
-          stats.recordSessions(Object.values(sessions).length)
-        }
+        if (stale > stalePeriod) delete sessions[sessionId]
       }
     )
   }
