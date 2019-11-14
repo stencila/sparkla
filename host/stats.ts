@@ -27,23 +27,19 @@ const versionView = globalStats.createView(
 globalStats.registerView(versionView)
 
 export function recordVersion() {
-  // It is necessary to wait some time before attempting to
-  // record a measure, so this timeout enforces that.
-  setTimeout(() => {
-    try {
-      const match = /^(\d+)\.(\d+)\.(\d+)/.exec(pkg.version)
-      if (match !== null) {
-        const [_, major, minor, patch] = match
-        const value =
-          parseFloat(major) +
-          parseFloat(minor) / 100 +
-          parseFloat(patch) / 10000
-        globalStats.record([{ measure: versionMeasure, value }])
-      }
-    } catch (error) {
-      log.error(error)
+  try {
+    const match = /^(\d+)\.(\d+)\.(\d+)/.exec(pkg.version)
+    if (match !== null) {
+      const [_, major, minor, patch] = match
+      const value =
+        parseFloat(major) +
+        parseFloat(minor) / 100 +
+        parseFloat(patch) / 10000
+      globalStats.record([{ measure: versionMeasure, value }])
     }
-  }, 1000)
+  } catch (error) {
+    log.error(error)
+  }
 }
 
 const logLevelMeasure = globalStats.createMeasureInt64(
@@ -261,13 +257,14 @@ async function recordSystemStats() {
 
 /**
  * Start collecting system statistics and
- * exporting .
+ * exporting.
  *
  * @param interval The interval in seconds for collecting system stats.
  * @param prometheus The port number to serve Prometheus metrics on.
  */
 export function start(interval: number, prometheus: number) {
   const record = () => {
+    recordVersion()
     recordSystemStats().catch(error => log.error(error))
   }
   record()
