@@ -1,3 +1,11 @@
+## [0.12.1](https://github.com/stencila/sparkla/compare/v0.12.0...v0.12.1) (2019-11-14)
+
+
+### Bug Fixes
+
+* **Logs:** Use log tags (aka labels)  for more useful metrics ([7292101](https://github.com/stencila/sparkla/commit/7292101ead273cedc6997ae4550e8ca20ed43415))
+* **Sats:** Continuously record version ([d7068b2](https://github.com/stencila/sparkla/commit/d7068b28bcdc498c846b129aea360f233598e7e9))
+
 # [0.12.0](https://github.com/stencila/sparkla/compare/v0.11.1...v0.12.0) (2019-11-13)
 
 
