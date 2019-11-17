@@ -1,3 +1,11 @@
+## [0.12.2](https://github.com/stencila/sparkla/compare/v0.12.1...v0.12.2) (2019-11-17)
+
+
+### Bug Fixes
+
+* **Dependencies:** Upgrade Executa to 0.14.1 ([16b6884](https://github.com/stencila/sparkla/commit/16b6884430fb3a039b8de55d4293d87bde4249c8)), closes [#35](https://github.com/stencila/sparkla/issues/35)
+* **Logging:** Fix how errors are sent to Sentry ([a51db1b](https://github.com/stencila/sparkla/commit/a51db1b09fe5b23d6c0a8bcd8354751593d04561)), closes [#34](https://github.com/stencila/sparkla/issues/34)
+
 ## [0.12.1](https://github.com/stencila/sparkla/compare/v0.12.0...v0.12.1) (2019-11-14)
 
 
