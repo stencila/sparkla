@@ -6,9 +6,9 @@ import {
 } from '@opencensus/core'
 import { PrometheusStatsExporter } from '@opencensus/exporter-prometheus'
 import { getLogger, LogData, LogLevel } from '@stencila/logga'
+import { SoftwareSession } from '@stencila/schema'
 import osu from 'node-os-utils'
 import pkg from './pkg'
-import { SoftwareSession } from '@stencila/schema'
 
 const log = getLogger('sparkla:stats')
 
@@ -184,41 +184,41 @@ export function recordExecuteDuration(value: number, type: string): void {
 
 // System level statistics
 
-const freeMemoryMeasure = globalStats.createMeasureDouble(
+const memoryFreeMeasure = globalStats.createMeasureDouble(
   'sparkla/memory_free',
   MeasureUnit.KBYTE,
   'The amount of free memory'
 )
 
-const usedPercentMemoryMeasure = globalStats.createMeasureDouble(
+const memoryUsedPercentMeasure = globalStats.createMeasureDouble(
   'sparkla/memory_used_percent',
   MeasureUnit.UNIT,
   'The percent of used memory'
 )
+
+const memoryFreeView = globalStats.createView(
+  'sparkla/view_memory_free',
+  memoryFreeMeasure,
+  AggregationType.LAST_VALUE,
+  [],
+  'The amount of free memory'
+)
+globalStats.registerView(memoryFreeView)
+
+const memoryUsedPercentView = globalStats.createView(
+  'sparkla/view_memory_used_percent',
+  memoryUsedPercentMeasure,
+  AggregationType.LAST_VALUE,
+  [],
+  'The percent of used memory'
+)
+globalStats.registerView(memoryUsedPercentView)
 
 const cpuUsagePercentMeasure = globalStats.createMeasureDouble(
   'sparkla/cpu_used_percent',
   MeasureUnit.UNIT,
   'The percent of used CPU'
 )
-
-const freeMemoryView = globalStats.createView(
-  'sparkla/view_memory_free',
-  freeMemoryMeasure,
-  AggregationType.LAST_VALUE,
-  [],
-  'The amount of free memory'
-)
-globalStats.registerView(freeMemoryView)
-
-const usedPercentMemoryView = globalStats.createView(
-  'sparkla/view_memory_used_percent',
-  usedPercentMemoryMeasure,
-  AggregationType.LAST_VALUE,
-  [],
-  'The percent of used memory'
-)
-globalStats.registerView(usedPercentMemoryView)
 
 const cpuUsagePercentView = globalStats.createView(
   'sparkla/view_cpu_used_percent',
@@ -229,22 +229,39 @@ const cpuUsagePercentView = globalStats.createView(
 )
 globalStats.registerView(cpuUsagePercentView)
 
+const driveUsedPercentMeasure = globalStats.createMeasureDouble(
+  'sparkla/drive_used_percent',
+  MeasureUnit.UNIT,
+  'The percent of root filesystem used.'
+)
+
+const driveUsedPercentView = globalStats.createView(
+  'sparkla/view_drive_used_percent',
+  driveUsedPercentMeasure,
+  AggregationType.LAST_VALUE,
+  [],
+  'The percent of root filesystem used.'
+)
+globalStats.registerView(driveUsedPercentView)
+
 /**
  * Record system level stats
  */
 async function recordSystemStats() {
   try {
     const memInfo = await osu.mem.info()
-    globalStats.record([
-      { measure: freeMemoryMeasure, value: memInfo.freeMemMb * 1024 },
-      {
-        measure: usedPercentMemoryMeasure,
-        value: 100 - memInfo.freeMemPercentage
-      }
-    ])
-
     const cpuUsage = await osu.cpu.usage()
-    globalStats.record([{ measure: cpuUsagePercentMeasure, value: cpuUsage }])
+    const driveInfo = await osu.drive.info('/')
+    globalStats.record([
+      { measure: memoryFreeMeasure, value: memInfo.freeMemMb * 1024 },
+      {
+        measure: memoryUsedPercentMeasure,
+        value: 100 - memInfo.freeMemPercentage
+      },
+      { measure: cpuUsagePercentMeasure, value: cpuUsage },
+      // The `* 1` is necessary to make the value a `number`
+      { measure: driveUsedPercentMeasure, value: driveInfo.usedPercentage * 1 }
+    ])
   } catch (error) {
     log.error(error)
   }
