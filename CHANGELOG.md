@@ -1,3 +1,10 @@
+## [0.12.3](https://github.com/stencila/sparkla/compare/v0.12.2...v0.12.3) (2019-11-18)
+
+
+### Bug Fixes
+
+* **Stats:** Add disk usage metric ([3808995](https://github.com/stencila/sparkla/commit/380899511756f801d54311fec160462b44279df6))
+
 ## [0.12.2](https://github.com/stencila/sparkla/compare/v0.12.1...v0.12.2) (2019-11-17)
 
 
