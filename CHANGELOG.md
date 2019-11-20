@@ -1,3 +1,11 @@
+# [0.13.0](https://github.com/stencila/sparkla/compare/v0.12.3...v0.13.0) (2019-11-20)
+
+
+### Features
+
+* **DockerSession:** Restart a session if it exits prematurely. ([d218819](https://github.com/stencila/sparkla/commit/d2188195f06f5b7a10ba23a738af737bed948948))
+* **Stats:** Add a session restarts metric ([d064fa4](https://github.com/stencila/sparkla/commit/d064fa4dd2e1b9ffcb3101866274ad0dcb849e91))
+
 ## [0.12.3](https://github.com/stencila/sparkla/compare/v0.12.2...v0.12.3) (2019-11-18)
 
 
