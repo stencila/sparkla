@@ -470,18 +470,33 @@ export class Manager extends BaseExecutor {
         )
       }
 
-      // Actually start the session and return the updated
-      // `SoftwareSession` node.
       const instance =
         this.config.sessionType === 'docker'
           ? new DockerSession()
           : new FirecrackerSession()
-      const before = performance.now()
-      const sessionBegun = await instance.begin({
+
+      const sessionBegun = {
         ...sessionToBegin,
         dateStart: date(new Date().toISOString()),
         status: 'started'
-      })
+      }
+
+      // If the session fails (i.e. exits prematurely) then notify
+      // clients and restart it
+      const onFail = () => {
+        log.warn(`Session failed and will be restarted: ${id}`)
+        this.notify(
+          'warn',
+          'Session failed and will be restarted',
+          sessionBegun,
+          clients
+        )
+        instance.begin(sessionBegun, onFail).catch(error => log.error(error))
+      }
+
+      // Actually start the session using the instance
+      const before = performance.now()
+      await instance.begin(sessionBegun, onFail)
       stats.recordSessionBeginDuration(
         performance.now() - before,
         sessionBegun,

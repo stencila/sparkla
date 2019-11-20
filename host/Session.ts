@@ -10,7 +10,15 @@ export abstract class Session {
    */
   abstract repr(): any
 
-  abstract begin(node: SoftwareSession): Promise<SoftwareSession>
+  /**
+   *
+   * @param session The `SoftwareSession` node to begin
+   * @param onFail A function to call if the session fails (i.e. exits prematurely)
+   */
+  abstract begin(
+    session: SoftwareSession,
+    onFail?: () => void
+  ): Promise<SoftwareSession>
 
   abstract execute(node: Node): Promise<Node>
 

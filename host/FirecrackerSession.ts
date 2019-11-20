@@ -101,6 +101,7 @@ export class FirecrackerSession extends Session {
 
   async begin(
     node: SoftwareSession,
+    onFail?: () => void,
     options: { attach?: boolean } = {}
   ): Promise<SoftwareSession> {
     const { attach = false } = options

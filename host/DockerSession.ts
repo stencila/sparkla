@@ -10,7 +10,7 @@ import {
 import Docker, { Container, MountSettings } from 'dockerode'
 import { Session } from './Session'
 import { optionalMin } from './util'
-import { PassThrough } from 'stream'
+import { PassThrough, Duplex } from 'stream'
 
 const BYTES_PER_GIB = 1024 * 1024 * 1024
 
@@ -22,17 +22,27 @@ const log = getLogger('sparkla:docker')
 
 const docker = new Docker()
 
-export class DockerSession extends Session {
+export class DockerSession implements Session {
   /**
    * The Docker container for this session.
    */
   container?: Docker.Container
 
   /**
+   * The stream used to communicate with
+   * the session.
+   */
+  stream?: Duplex
+
+  /**
    * The client used to connect to the Docker
    * container and make execution requests.
    */
   client?: StreamClient
+
+  constructor(container?: Docker.Container) {
+    this.container = container
+  }
 
   repr(): any {
     const container =
@@ -47,11 +57,13 @@ export class DockerSession extends Session {
   }
 
   /**
-   * Begin a session.
-   *
-   * @param session
+   * @implements Implements {@link Session.begin} by beginning
+   * a session using a Docker container.
    */
-  async begin(session: SoftwareSession): Promise<SoftwareSession> {
+  async begin(
+    session: SoftwareSession,
+    onFail?: () => void
+  ): Promise<SoftwareSession> {
     const {
       id = '',
       environment,
@@ -145,13 +157,13 @@ export class DockerSession extends Session {
 
     // Attach to the container. Use "HTTP hijacking" for
     // separate `stdin` and `stdout`
-    const stream = await container.attach({
+    const stream = (this.stream = await container.attach({
       stream: true,
       hijack: true,
       stdin: true,
       stdout: true,
       stderr: false
-    })
+    }))
 
     // De-multiplex the stream to split stdout from stderr
     const stdout = new PassThrough()
@@ -159,6 +171,9 @@ export class DockerSession extends Session {
 
     // @ts-ignore that 'ReadWriteStream' is not assignable to parameter of type 'Writable'
     this.client = new StreamClient(stream, stdout)
+
+    // Register `close` event handler
+    if (onFail !== undefined) stream.on('close', onFail)
 
     return session
   }
@@ -168,31 +183,6 @@ export class DockerSession extends Session {
     if (client === undefined)
       throw new Error('Attempting to execute() before begin()?')
     return client.execute(node)
-  }
-
-  static async stopContainer(container: Container): Promise<void> {
-    try {
-      await container.stop()
-      await container.remove()
-    } catch (error) {
-      // The session may have been removed already, in which case,
-      // ignore that error
-      const message = error.message as string
-      if (
-        !(
-          message.includes('No such container') ||
-          message.includes('already in progress')
-        )
-      )
-        throw error
-    }
-  }
-
-  async end(node: SoftwareSession): Promise<SoftwareSession> {
-    const { container, client } = this
-    if (container !== undefined) await DockerSession.stopContainer(container)
-    if (client !== undefined) await client.stop()
-    return node
   }
 
   /**
@@ -229,6 +219,38 @@ export class DockerSession extends Session {
   }
 
   /**
+   * End a session being managed by this class.
+   */
+  async end(node: SoftwareSession): Promise<SoftwareSession> {
+    const { container, stream, client } = this
+    if (client !== undefined) await client.stop()
+    if (stream !== undefined) {
+      // Avoid unnecessary log errors and attempts to restart container
+      // by removing listeners on stream close
+      stream.removeAllListeners('close')
+      stream.destroy()
+    }
+    if (container !== undefined) {
+      try {
+        await container.stop()
+        await container.remove()
+      } catch (error) {
+        // The session may have been removed already, in which case,
+        // ignore that error
+        const message = error.message as string
+        if (
+          !(
+            message.includes('No such container') ||
+            message.includes('already in progress')
+          )
+        )
+          throw error
+      }
+    }
+    return node
+  }
+
+  /**
    * End all sessions being managed by this class.
    */
   static async endAll(): Promise<void> {
@@ -249,8 +271,10 @@ export class DockerSession extends Session {
     await Promise.all(
       containers.map(async info => {
         const container = docker.getContainer(info.Id)
-        if (info.State === 'running')
-          await DockerSession.stopContainer(container)
+        if (info.State === 'running') {
+          const session = new DockerSession(container)
+          await session.end(softwareSession())
+        }
       })
     )
   }
