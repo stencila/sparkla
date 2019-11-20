@@ -34,6 +34,7 @@ session
         name: 'stencila/sparkla-alpine'
       }
     },
+    () => {},
     { attach: true }
   )
   .catch((error: Error) => {

@@ -135,6 +135,31 @@ export function recordSessionBeginDuration(
   )
 }
 
+const sessionRestartMeasure = globalStats.createMeasureInt64(
+  'sparkla/session_restarts',
+  MeasureUnit.UNIT,
+  'The number of session restarts'
+)
+
+const sessionRestartView = globalStats.createView(
+  'sparkla/view_session_restarts',
+  sessionRestartMeasure,
+  AggregationType.COUNT,
+  [sessionTypeTagKey, sessionStatusTagKey, sessionEnvironTagKey],
+  'The number of session restarts'
+)
+globalStats.registerView(sessionRestartView)
+
+export function recordSessionRestart(
+  session: SoftwareSession,
+  type: string
+): void {
+  globalStats.record(
+    [{ measure: sessionRestartMeasure, value: 1 }],
+    createSessionTags(session, type)
+  )
+}
+
 const sessionEndDurationMeasure = globalStats.createMeasureDouble(
   'sparkla/session_end_duration',
   MeasureUnit.MS,

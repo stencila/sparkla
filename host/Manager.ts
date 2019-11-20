@@ -492,6 +492,7 @@ export class Manager extends BaseExecutor {
           clients
         )
         instance.begin(sessionBegun, onFail).catch(error => log.error(error))
+        stats.recordSessionRestart(sessionBegun, this.config.sessionType)
       }
 
       // Actually start the session using the instance
