@@ -26,7 +26,7 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "@gerrit0/typedoc": "0.15.10",
-    "@stencila/dev-config": "1.2.2",
+    "@stencila/dev-config": "1.2.3",
     "@stencila/dockta": "0.16.1",
     "@types/continuation-local-storage": "3.2.2",
     "@types/dockerode": "2.5.20",
