@@ -44,7 +44,7 @@
     "@opencensus/exporter-prometheus": "0.0.19",
     "@sentry/node": "^5.8.0",
     "@stencila/executa": "^0.14.1",
-    "@stencila/logga": "^1.4.1",
+    "@stencila/logga": "^2.0.0",
     "discovery-channel": "^5.5.1",
     "dockerode": "^3.0.2",
     "external-ip": "^2.1.1",
