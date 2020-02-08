@@ -7,6 +7,6 @@
     "url": "https://github.com/stencila/sparkla/"
   },
   "dependencies": {
-    "simple-statistics": "7.0.5"
+    "simple-statistics": "7.0.8"
   }
 }
