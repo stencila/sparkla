@@ -27,7 +27,7 @@
   "devDependencies": {
     "@gerrit0/typedoc": "0.15.11",
     "@stencila/dev-config": "1.2.3",
-    "@stencila/dockta": "0.16.1",
+    "@stencila/dockta": "0.16.4",
     "@types/continuation-local-storage": "3.2.2",
     "@types/dockerode": "2.5.20",
     "@types/jest": "24.0.23",
