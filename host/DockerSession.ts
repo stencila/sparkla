@@ -163,7 +163,7 @@ export class DockerSession implements Session {
       stdin: true,
       stdout: true,
       stderr: false
-    }))
+    }) as Duplex)
 
     // De-multiplex the stream to split stdout from stderr
     const stdout = new PassThrough()
