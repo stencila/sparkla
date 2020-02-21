@@ -186,7 +186,7 @@ const defaultSession = {
   memoryRequest: 1,
   networkTransferRequest: 1,
   environment: {
-    name: 'stencila/sparkla-ubuntu-midi'
+    name: 'stencila/sparkla-ubuntu'
   }
 }
 

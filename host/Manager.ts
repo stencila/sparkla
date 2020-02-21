@@ -125,7 +125,7 @@ export class Manager extends BaseExecutor {
     memoryRequest: 1, // 1 GiB
     durationRequest: 6 * 3600, // 6hr
     timeoutRequest: 1 * 3600, // 1hr
-    environment: softwareEnvironment('stencila/sparkla-ubuntu-midi')
+    environment: softwareEnvironment('stencila/sparkla-ubuntu')
   })
 
   /**
