@@ -18,7 +18,7 @@ import {
   softwareSession
 } from '@stencila/schema'
 import JWT from 'jsonwebtoken'
-import { Sparkla } from './Manager'
+import { Sparkla } from './Sparkla'
 
 let sparkla: Sparkla
 let client: WebSocketClient

@@ -4,7 +4,7 @@ import { collectConfig, helpUsage } from '@stencila/configa/dist/run'
 import { Config } from './config'
 import configSchema from './config.schema.json'
 import * as logs from './logs'
-import { Sparkla } from './Manager'
+import { Sparkla } from './Sparkla'
 
 // Collect configuration options
 const { args = ['help'], options, config, valid, log } = collectConfig<Config>(

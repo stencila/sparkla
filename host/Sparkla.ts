@@ -7,7 +7,7 @@ import {
   Claims,
   WebSocketClient
 } from '@stencila/executa'
-import { Peer } from '@stencila/executa/dist/lib/base/Delegator'
+
 import { getLogger } from '@stencila/logga'
 import {
   codeError,
@@ -28,7 +28,7 @@ import { performance } from 'perf_hooks'
 import { Config } from './config'
 import { DockerSession } from './DockerSession'
 import { FirecrackerSession } from './FirecrackerSession'
-import { ManagerServer } from './ManagerServer'
+import { ManagerServer } from './SparklaServer'
 import { Session } from './Session'
 import pkg from './pkg'
 import * as stats from './stats'

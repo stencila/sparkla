@@ -1,4 +1,4 @@
-import { Sparkla } from './Manager'
+import { Sparkla } from './Sparkla'
 
 beforeAll(() => {
   process.env.JWT_SECRET = 'not-a-secret-at-all'

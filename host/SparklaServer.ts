@@ -8,7 +8,7 @@ import { getLogger } from '@stencila/logga'
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import fastifyStatic from 'fastify-static'
 import path from 'path'
-import { Sparkla } from './Manager'
+import { Sparkla } from './Sparkla'
 
 const log = getLogger('sparkla:manager:server')
 
