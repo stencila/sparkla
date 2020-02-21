@@ -21,7 +21,7 @@ export function setup(config: Config) {
    */
   replaceHandlers(data => {
     defaultHandler(data, {
-      level: debug ? LogLevel.debug : LogLevel.info
+      maxLevel: debug ? LogLevel.debug : LogLevel.info
     })
   })
 

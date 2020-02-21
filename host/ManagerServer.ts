@@ -83,7 +83,7 @@ export class ManagerServer extends WebSocketServer {
     // Admin route (HTML and API endpoint) is only accessible if a valid JWT
     // with the `admin` claim
     const url = request.raw.url
-    if (url !== undefined && url.startsWith('/admin')) {
+    if (url?.startsWith('/admin')) {
       // @ts-ignore that `user` is not a property of `request`
       const user = request.user
       if (user === undefined || user.admin !== true) reply.status(403).send()

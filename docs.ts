@@ -4,7 +4,7 @@
  * Script to generate docs for configuration options
  */
 
-import * as typedoc from '@gerrit0/typedoc'
+import * as typedoc from 'typedoc'
 import fs from 'fs'
 
 const app = new typedoc.Application({
