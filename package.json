@@ -14,9 +14,10 @@
     "test:cover": "jest --coverage --runInBand",
     "test:unit": "jest --testPathPattern=\\.test\\.ts$",
     "test:integ": "jest --runInBand --testPathPattern=\\.integ\\.ts$",
-    "build": "tsc && cp -r host/public/. dist/public",
-    "docs": "npm run docs:options",
-    "docs:options": "ts-node docs",
+    "build": "configa schema && tsc && cp -r host/public/. dist/public",
+    "docs": "npm run docs:readme && npm run docs:api",
+    "docs:readme": "configa readme",
+    "docs:api": "typedoc --exclude '**/**/*.test.ts' ./host",
     "cli": "node dist/cli",
     "cli:dev": "ts-node host/cli",
     "serve": "node dist/cli serve",
@@ -43,6 +44,7 @@
     "@opencensus/core": "^0.0.20",
     "@opencensus/exporter-prometheus": "^0.0.20",
     "@sentry/node": "^5.12.4",
+    "@stencila/configa": "^0.4.2",
     "@stencila/executa": "^0.14.1",
     "@stencila/logga": "^2.1.0",
     "discovery-channel": "^5.5.1",
@@ -50,8 +52,7 @@
     "external-ip": "^2.1.1",
     "fastify-static": "^2.6.0",
     "moniker": "^0.1.2",
-    "node-os-utils": "^1.2.2",
-    "rc": "^1.2.8"
+    "node-os-utils": "^1.2.2"
   },
   "prettier": "@stencila/dev-config/prettier-config.json",
   "commitlint": {

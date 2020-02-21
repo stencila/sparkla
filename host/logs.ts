@@ -5,7 +5,7 @@ import {
   addHandler
 } from '@stencila/logga'
 import * as Sentry from '@sentry/node'
-import { Config } from './Config'
+import { Config } from './config'
 import pkg from './pkg'
 import * as stats from './stats'
 

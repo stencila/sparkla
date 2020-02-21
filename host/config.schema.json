@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "description": "",
+  "$comment": "",
+  "properties": {
+    "debug": {
+      "description": "Output debug level log entries?",
+      "type": "boolean",
+      "default": false
+    },
+    "host": {
+      "description": "The host address that the server should listen on.",
+      "type": "string",
+      "default": "127.0.0.1"
+    },
+    "port": {
+      "description": "The port that the server should listen on.",
+      "type": "number",
+      "default": 9000
+    },
+    "jwtSecret": {
+      "description": "The JWT secret to use to sign and verify JWT tokens.\nIf `null` then a random secret will be generated.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "sessionType": {
+      "description": "The class of sessions created.",
+      "type": "string",
+      "enum": ["firecracker", "docker"],
+      "default": "docker"
+    },
+    "cpuTotal": {
+      "description": "The total number of CPUs that can be allocated to sessions.\n`null` = use the number of CPUs on the machine.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "memoryTotal": {
+      "description": "The total number amount of memory (Gib) that can be allocated to sessions.\n`null` = use the total amount of memory on the machine.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "expiryInterval": {
+      "description": "Interval in seconds between checks\nfor expired sessions.",
+      "type": "number",
+      "default": 15
+    },
+    "durationWarning": {
+      "description": "Number of seconds to provide clients with\na warning prior to reaching maximum session duration.",
+      "type": "number",
+      "default": 600
+    },
+    "timeoutWarning": {
+      "description": "Number of seconds to provide clients with\na warning prior to a reaching session timeout.",
+      "type": "number",
+      "default": 60
+    },
+    "staleInterval": {
+      "description": "Interval in seconds between checks\nfor stale sessions.",
+      "type": "number",
+      "default": 60
+    },
+    "stalePeriod": {
+      "description": "Number of seconds that a stopped session is\nconsidered stale and will be removed from the list of sessions.",
+      "type": "number",
+      "default": 3600
+    },
+    "statsInterval": {
+      "description": "Interval in seconds for collecting system statistics",
+      "type": "number",
+      "default": 60
+    },
+    "statsPrometheus": {
+      "description": "The port to serve Prometheus compatible metrics on.\nSet to `0` to turn off Prometheus exporting.",
+      "type": "number",
+      "default": 9464
+    },
+    "logsSentry": {
+      "description": "The Sentry DSN (Data Source Name) to record warning and error log entries.\nSet to `null` to not send logs to Sentry.",
+      "type": "string",
+      "default": "https://7a4f9c9b0ef5474596c0066bb364e615@sentry.io/1818023"
+    },
+    "peerSwarm": {
+      "description": "The name of the peer swarm to join.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "sparkla"
+    }
+  }
+}
