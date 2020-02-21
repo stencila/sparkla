@@ -35,9 +35,7 @@ describe('begin + end', () => {
     const instance = new DockerSession()
     const session = softwareSession({
       volumeMounts: [
-        volumeMount('/mount/dir', {
-          mountSource: '/tmp'
-        })
+        volumeMount({ mountDestination: '/mount/dir', mountSource: '/tmp' })
       ]
     })
     await instance.begin(session)
@@ -58,7 +56,7 @@ describe('execute', () => {
     await instance.begin(session)
 
     const expr = await instance.execute(
-      codeExpression('6 * 7', { programmingLanguage: 'python' })
+      codeExpression({ text: '6 * 7', programmingLanguage: 'python' })
     )
     expect(expr).toEqual({
       type: 'CodeExpression',

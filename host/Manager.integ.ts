@@ -18,9 +18,9 @@ import {
   softwareSession
 } from '@stencila/schema'
 import JWT from 'jsonwebtoken'
-import { Manager } from './Manager'
+import { Sparkla } from './Manager'
 
-let manager: Manager
+let sparkla: Sparkla
 let client: WebSocketClient
 let address: WebSocketAddress
 
@@ -33,9 +33,12 @@ beforeAll(async () => {
     }
     // Start a manager locally and get it's
     // address (which contains a JWT)
-    manager = new Manager()
-    await manager.start()
-    address = manager.addresses().ws as WebSocketAddress
+    sparkla = new Sparkla()
+    await sparkla.start()
+    const { ws } = await sparkla.addresses()
+    if (ws === undefined)
+      throw new Error(`Sparkla instance has no Websocket address`)
+    address = new WebSocketAddress(Array.isArray(ws) ? ws[0] : ws)
   } else {
     // Construct a "empty" JWT using the secret
     const secret = process.env.JWT_SECRET
@@ -59,7 +62,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (client !== undefined) await client.stop()
-  if (manager !== undefined) await manager.stop()
+  if (sparkla !== undefined) await sparkla.stop()
 })
 
 // Allow up to 5 minutes for this test
@@ -109,7 +112,8 @@ describe('Manager', () => {
    */
   test('execute: Python CodeExpression with implicit session', async () => {
     const expr = await client.execute(
-      codeExpression('7 * 6 + 32', {
+      codeExpression({
+        text: '7 * 6 + 32',
         programmingLanguage: 'python'
       })
     )
@@ -123,13 +127,14 @@ describe('Manager', () => {
   test('execute: Python CodeChunk within a session', async () => {
     const session = await client.begin(
       softwareSession({
-        environment: softwareEnvironment('stencila/sparkla-ubuntu')
+        environment: softwareEnvironment({ name: 'stencila/sparkla-ubuntu' })
       })
     )
     let chunk
 
     chunk = await client.execute(
-      codeChunk('a = 3', {
+      codeChunk({
+        text: 'a = 3',
         programmingLanguage: 'python'
       }),
       session
@@ -138,7 +143,8 @@ describe('Manager', () => {
     expect(chunk.outputs).toEqual([])
 
     chunk = await client.execute(
-      codeChunk('a * 2', {
+      codeChunk({
+        text: 'a * 2',
         programmingLanguage: 'python'
       }),
       session

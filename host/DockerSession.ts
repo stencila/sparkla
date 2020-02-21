@@ -7,7 +7,7 @@ import {
   VolumeMount,
   volumeMount
 } from '@stencila/schema'
-import Docker, { Container, MountSettings } from 'dockerode'
+import Docker, { MountSettings } from 'dockerode'
 import { Session } from './Session'
 import { optionalMin } from './util'
 import { PassThrough, Duplex } from 'stream'
@@ -44,7 +44,7 @@ export class DockerSession implements Session {
     this.container = container
   }
 
-  repr(): any {
+  repr(): object {
     const container =
       this.container !== undefined
         ? {
@@ -129,7 +129,6 @@ export class DockerSession implements Session {
       // to set StopSignal to 'SIGKILL' to stop the process immediately
       // (the default is SIGTERM).
       // But this approach allows for some gracefulness in shutdown.
-      // @ts-ignore that StopTimeout is not a defined option
       StopTimeout: 5,
       // Add Sparkla labels to be able to filter these easily
       Labels: {
@@ -157,20 +156,20 @@ export class DockerSession implements Session {
 
     // Attach to the container. Use "HTTP hijacking" for
     // separate `stdin` and `stdout`
-    const stream = (this.stream = await container.attach({
+    const stream = (this.stream = (await container.attach({
       stream: true,
       hijack: true,
       stdin: true,
       stdout: true,
       stderr: false
-    }) as Duplex)
+    })) as Duplex)
 
     // De-multiplex the stream to split stdout from stderr
     const stdout = new PassThrough()
     docker.modem.demuxStream(stream, stdout, process.stderr)
 
-    // @ts-ignore that 'ReadWriteStream' is not assignable to parameter of type 'Writable'
-    this.client = new StreamClient(stream, stdout)
+    this.client = new StreamClient()
+    await this.client.start(stream, stdout)
 
     // Register `close` event handler
     if (onFail !== undefined) stream.on('close', onFail)
@@ -206,7 +205,8 @@ export class DockerSession implements Session {
       const volumeMounts = mounts.map(
         (mount): VolumeMount => {
           const { Source: mountSource, Destination: mountDestination } = mount
-          return volumeMount(mountDestination, {
+          return volumeMount({
+            mountDestination,
             mountSource
           })
         }

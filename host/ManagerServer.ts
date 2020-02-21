@@ -5,10 +5,10 @@ import {
   WebSocketServer
 } from '@stencila/executa'
 import { getLogger } from '@stencila/logga'
-import { FastifyReply, FastifyRequest, FastifyInstance } from 'fastify'
+import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import fastifyStatic from 'fastify-static'
 import path from 'path'
-import { Manager } from './Manager'
+import { Sparkla } from './Manager'
 
 const log = getLogger('sparkla:manager:server')
 
@@ -59,7 +59,7 @@ export class ManagerServer extends WebSocketServer {
 
         // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
         if (request.headers.accept.includes('application/json')) {
-          const manager = this.executor as Manager
+          const manager = this.executor as Sparkla
           reply.send(await manager.info())
         } else reply.sendFile('admin.html')
       }
@@ -111,7 +111,7 @@ export class ManagerServer extends WebSocketServer {
    * @override Override `HttpServer.start` to also print the
    * url of token enabled admin page
    */
-  public async start(executor?: Executor): Promise<void> {
+  public async start(executor: Executor): Promise<void> {
     await super.start(executor)
 
     const url = this.address.url().replace(/^ws/, 'http')

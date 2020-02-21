@@ -1,34 +1,34 @@
-import { Manager } from './Manager'
+import { Sparkla } from './Manager'
 
 beforeAll(() => {
   process.env.JWT_SECRET = 'not-a-secret-at-all'
 })
 
 test('can be constructed', () => {
-  const manager = new Manager()
-  expect(manager instanceof Manager).toBe(true)
+  const sparkla = new Sparkla()
+  expect(sparkla instanceof Sparkla).toBe(true)
 })
 
 test('generate unique, route-able, session ids', () => {
-  const manager = new Manager()
+  const sparkla = new Sparkla()
 
-  const id = manager.generateSessionId()
+  const id = sparkla.generateSessionId()
   const match = /^[a-z]{2,5}:\/\/([^/]+)\/([^/]+)\/([^/]+)/.exec(id)
   expect(match).toBeDefined()
   if (match !== null) {
     expect(match[1]).toBe('0.0.0.0')
     expect(match[2]).toBe('127.0.0.1')
-    expect(match[3]).toBe(manager.config.port.toString())
+    expect(match[3]).toBe(sparkla.config.port.toString())
   }
 
-  const anotherId = manager.generateSessionId()
+  const anotherId = sparkla.generateSessionId()
   expect(anotherId).not.toEqual(id)
 })
 
 test('parse session ids so they can be routed to other managers', () => {
-  const manager = new Manager()
+  const sparkla = new Sparkla()
 
-  const parts = manager.parseSessionId(
+  const parts = sparkla.parseSessionId(
     'ws://103.233.21.109/192.168.1.111/9000/bf3e3ea064f1b176ffd099f7442e4b8977003278997f4ee68803ad6e5d0b95f6'
   )
   expect(parts).toBeDefined()
@@ -42,9 +42,9 @@ test('parse session ids so they can be routed to other managers', () => {
 })
 
 test('generate most-of-the-time-unique, human-friendly, session names', () => {
-  const manager = new Manager()
+  const sparkla = new Sparkla()
 
-  const name1 = manager.generateSessionName()
-  const name2 = manager.generateSessionName()
+  const name1 = sparkla.generateSessionName()
+  const name2 = sparkla.generateSessionName()
   expect(name1).not.toEqual(name2)
 })

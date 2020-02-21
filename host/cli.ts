@@ -4,7 +4,7 @@ import { collectConfig, helpUsage } from '@stencila/configa/dist/run'
 import { Config } from './config'
 import configSchema from './config.schema.json'
 import * as logs from './logs'
-import { Manager } from './Manager'
+import { Sparkla } from './Manager'
 
 // Collect configuration options
 const { args = ['help'], options, config, valid, log } = collectConfig<Config>(
@@ -22,8 +22,8 @@ args.map((command: string) => {
       console.log(JSON.stringify(config, null, '  '))
       break
     case 'serve': {
-      const manager = new Manager(config)
-      manager.run().catch(error => log.error(error))
+      const sparkla = new Sparkla(config)
+      sparkla.run().catch(error => log.error(error))
       break
     }
     case 'help':
