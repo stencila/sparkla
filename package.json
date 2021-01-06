@@ -42,7 +42,7 @@
     "@opencensus/exporter-prometheus": "^0.0.20",
     "@sentry/node": "^5.12.4",
     "@stencila/configa": "^0.4.2",
-    "@stencila/executa": "^1.8.0",
+    "@stencila/executa": "^1.15.6",
     "@stencila/logga": "^2.1.0",
     "dockerode": "^3.1.0",
     "moniker": "^0.1.2",
