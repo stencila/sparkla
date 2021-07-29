@@ -38,7 +38,7 @@
     "typescript": "3.9.10"
   },
   "dependencies": {
-    "@opencensus/core": "^0.0.22",
+    "@opencensus/core": "^0.1.0",
     "@opencensus/exporter-prometheus": "^0.0.22",
     "@sentry/node": "^5.12.4",
     "@stencila/configa": "^0.4.2",
