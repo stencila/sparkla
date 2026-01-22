@@ -1,4 +1,4 @@
-FROM ubuntu:18.10
+FROM ubuntu:cosmic-20190719
 
 # Install system dependencies
 RUN apt-get update -y
